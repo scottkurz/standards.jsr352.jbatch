@@ -63,7 +63,9 @@ import com.ibm.jbatch.container.jobinstance.RuntimeFlowInSplitExecution;
 import com.ibm.jbatch.container.jobinstance.RuntimeJobExecution;
 import com.ibm.jbatch.container.jobinstance.StepExecutionImpl;
 import com.ibm.jbatch.container.persistence.CheckpointData;
-import com.ibm.jbatch.container.persistence.CheckpointDataKey;
+import com.ibm.jbatch.container.persistence.CheckpointData.Type;
+import com.ibm.jbatch.container.services.CheckpointDataKey;
+import com.ibm.jbatch.container.services.CheckpointDataPair;
 import com.ibm.jbatch.container.services.IJobExecution;
 import com.ibm.jbatch.container.services.IPersistenceManagerService;
 import com.ibm.jbatch.container.status.JobStatus;
@@ -72,6 +74,8 @@ import com.ibm.jbatch.container.util.TCCLObjectInputStream;
 import com.ibm.jbatch.spi.services.IBatchConfig;
 
 public class JDBCPersistenceManagerImpl implements IPersistenceManagerService, JDBCPersistenceManagerSQLConstants {
+
+	private class NoSuchEntryException extends Exception { }
 
 	private static final String CLASSNAME = JDBCPersistenceManagerImpl.class.getName();
 
@@ -259,14 +263,72 @@ public class JDBCPersistenceManagerImpl implements IPersistenceManagerService, J
 		logger.exiting(CLASSNAME, "executeStatement");
 	}
 
-
+	private String getCheckpointKeyString(CheckpointDataKey checkpointDataKey, Type type) {
+		return checkpointDataKey.getJobInstanceId() + "," +
+				checkpointDataKey.getStepName() + "," + type.toString();
+	}
+		
 	/* (non-Javadoc)
 	 * @see com.ibm.jbatch.container.services.impl.AbstractPersistenceManagerImpl#createCheckpointData(com.ibm.ws.batch.container.checkpoint.CheckpointDataKey, com.ibm.ws.batch.container.checkpoint.CheckpointData)
 	 */
 	@Override
-	public void createCheckpointData(CheckpointDataKey key, CheckpointData value) {
-		logger.entering(CLASSNAME, "createCheckpointData", new Object[] {key, value});
-		insertCheckpointData(key.getCommaSeparatedKey(), value);
+	public void createCheckpointData(CheckpointDataKey key) {
+		logger.entering(CLASSNAME, "createCheckpointData", key);
+		
+		CheckpointData readerChkpt = 
+				new CheckpointData(key.getJobInstanceId(), key.getStepName(), Type.READER);
+		CheckpointData writerChkpt = 
+				new CheckpointData(key.getJobInstanceId(), key.getStepName(), Type.WRITER);
+
+		String readerKeyString = getCheckpointKeyString(key, Type.READER);
+		String writerKeyString = getCheckpointKeyString(key, Type.WRITER);
+
+		insertCheckpointData(readerKeyString, readerChkpt);
+		insertCheckpointData(writerKeyString, writerChkpt);
+		
+		logger.exiting(CLASSNAME, "createCheckpointData");
+	}
+	
+	private void insertCheckpointData(String keyString, CheckpointData checkpointData) {
+		Connection conn = null;
+		PreparedStatement statement = null;
+		ByteArrayOutputStream baos = null;
+		ObjectOutputStream oout = null;
+
+		logger.finer("Inserting checkpoint data for key: " + keyString);
+
+		byte[] b;
+		try {
+			conn = getConnection();
+			statement = conn.prepareStatement(INSERT_CHECKPOINTDATA);
+			
+			b = serializeObject(checkpointData);
+
+			statement.setString(1, keyString);
+			statement.setBytes(2, b);
+			statement.executeUpdate();
+		} catch (SQLException e) {
+			throw new PersistenceException(e);
+		} catch (IOException e) {
+			throw new PersistenceException(e);
+		} finally {
+			if (baos != null) {
+				try {
+					baos.close();
+				} catch (IOException e) {
+					throw new PersistenceException(e);
+				}
+			}
+			if (oout != null) {
+				try {
+					oout.close();
+				} catch (IOException e) {
+					throw new PersistenceException(e);
+				}
+			}
+			cleanupConnection(conn, null, statement);
+		}
+		
 		logger.exiting(CLASSNAME, "createCheckpointData");
 	}
 
@@ -274,24 +336,136 @@ public class JDBCPersistenceManagerImpl implements IPersistenceManagerService, J
 	 * @see com.ibm.jbatch.container.services.impl.AbstractPersistenceManagerImpl#getCheckpointData(com.ibm.ws.batch.container.checkpoint.CheckpointDataKey)
 	 */
 	@Override
-	public CheckpointData getCheckpointData(CheckpointDataKey key) {
+	public CheckpointDataPair getCheckpointData(CheckpointDataKey key) {
 		logger.entering(CLASSNAME, "getCheckpointData", key==null ? "<null>" : key);
-		CheckpointData checkpointData = queryCheckpointData(key.getCommaSeparatedKey());
-		logger.exiting(CLASSNAME, "getCheckpointData", checkpointData==null ? "<null>" : checkpointData);
-		return checkpointData;
+		
+		Serializable readerCheckpointData = null;
+		Serializable writerCheckpointData = null;
+
+		String readerKeyString = getCheckpointKeyString(key, Type.READER);
+		String writerKeyString = getCheckpointKeyString(key, Type.WRITER);
+		
+		try {
+			readerCheckpointData = queryCheckpointData(readerKeyString);
+			writerCheckpointData = queryCheckpointData(writerKeyString);
+		} catch (NoSuchEntryException e) {
+			logger.finer("No entry found for: " + readerKeyString);
+			return null;
+		}
+		
+		CheckpointDataPair checkpointDataPair = new CheckpointDataPairImpl();
+		checkpointDataPair.setReaderCheckpoint(readerCheckpointData);
+		checkpointDataPair.setWriterCheckpoint(writerCheckpointData);
+		
+		logger.exiting(CLASSNAME, "getCheckpointData");
+
+		return checkpointDataPair;
+	}
+		
+	private Serializable queryCheckpointData(String keyString) throws NoSuchEntryException {
+
+		Connection conn = null;
+		PreparedStatement statement = null;
+		ResultSet rs = null;
+		ObjectInputStream objectIn = null;
+		CheckpointData data = null;
+
+		logger.finer("Querying checkpoint data for key: " + keyString);
+
+		try {
+			conn = getConnection();
+			statement = conn.prepareStatement(SELECT_CHECKPOINTDATA);
+			statement.setString(1, keyString);
+			rs = statement.executeQuery();
+			if (rs.next()) {
+				byte[] buf = rs.getBytes("obj");
+				data = (CheckpointData)deserializeObject(buf);
+			} else {
+				throw new NoSuchEntryException();
+			}
+		} catch (SQLException e) {
+			throw new PersistenceException(e);
+		} catch (IOException e) {
+			throw new PersistenceException(e);
+		} catch (ClassNotFoundException e) {
+			throw new PersistenceException(e);
+		} finally {
+			if (objectIn != null) {
+				try {
+					objectIn.close();
+				} catch (IOException e) {
+					throw new PersistenceException(e);
+				}
+			}
+			cleanupConnection(conn, rs, statement);
+		}
+		
+		// Note 'data' must be non-null at this point, though 'checkpointInfo' of null is a valid value.
+		Serializable checkpointInfo = data.getDeserializedRestartToken();
+		
+		logger.exiting(CLASSNAME, "getCheckpointData", checkpointInfo==null ? "<null>" : checkpointInfo);
+		return checkpointInfo;
 	}
 
-	/* (non-Javadoc)
-	 * @see com.ibm.jbatch.container.services.impl.AbstractPersistenceManagerImpl#updateCheckpointData(com.ibm.ws.batch.container.checkpoint.CheckpointDataKey, com.ibm.ws.batch.container.checkpoint.CheckpointData)
+
+	/**
+	 * 
 	 */
-	@Override
-	public void updateCheckpointData(CheckpointDataKey key, CheckpointData value) {
-		logger.entering(CLASSNAME, "updateCheckpointData", new Object[] {key, value});
-		CheckpointData data = queryCheckpointData(key.getCommaSeparatedKey());
-		if(data != null) {
-			updateCheckpointData(key.getCommaSeparatedKey(), value);
-		} else {
-			createCheckpointData(key, value);
+	public void updateCheckpointData(CheckpointDataKey key, CheckpointDataPair checkpointDataPair) {
+		logger.entering(CLASSNAME, "updateCheckpointData", new Object[] {key, checkpointDataPair});
+		
+		updateCheckpointData(key, checkpointDataPair.getReaderCheckpoint(), Type.READER);
+		updateCheckpointData(key, checkpointDataPair.getWriterCheckpoint(), Type.WRITER);
+		
+		logger.exiting(CLASSNAME, "updateCheckpointData");
+	}
+	
+	private void updateCheckpointData(CheckpointDataKey key, Serializable checkpointInfo, Type type) {
+		
+		Connection conn = null;
+		PreparedStatement statement = null;
+		ByteArrayOutputStream baos = null;
+		ObjectOutputStream oout = null;
+		byte[] b;
+
+		String keyString = getCheckpointKeyString(key, type);
+		logger.finer("Updating checkpoint data for key: " + keyString);
+
+		try {
+			conn = getConnection();
+			statement = conn.prepareStatement(UPDATE_CHECKPOINTDATA);
+
+			CheckpointData checkpointData =
+				new CheckpointData(key.getJobInstanceId(), key.getStepName(), type);
+
+			byte[] checkpointInfoBytes = serializeObject(checkpointInfo);
+			checkpointData.setRestartToken(checkpointInfoBytes);
+
+			b = serializeObject(checkpointData);
+
+			statement.setBytes(1, b);
+			statement.setString(2, keyString);
+			statement.executeUpdate();
+		} catch (SQLException e) {
+			throw new PersistenceException(e);
+		} catch (IOException e) {
+			throw new PersistenceException(e);
+		} finally {
+			if (baos != null) {
+				try {
+					baos.close();
+				} catch (IOException e) {
+					throw new PersistenceException(e);
+				}
+			}
+			if (oout != null) {
+				try {
+					oout.close();
+				} catch (IOException e) {
+					throw new PersistenceException(e);
+				}
+			}
+			cleanupConnection(conn, null, statement);
 		}
 		logger.exiting(CLASSNAME, "updateCheckpointData");
 	}
@@ -390,156 +564,6 @@ public class JDBCPersistenceManagerImpl implements IPersistenceManagerService, J
 
 		logger.finest("Exiting " + CLASSNAME +".setSchemaOnConnection()");
 	}
-
-	/**
-	 * select data from DB table
-	 * 
-	 * @param key - the IPersistenceDataKey object
-	 * @return List of serializable objects store in the DB table
-	 * 
-	 * Ex. select id, obj from tablename where id = ?
-	 */
-	private CheckpointData queryCheckpointData(Object key) {
-		logger.entering(CLASSNAME, "queryCheckpointData", new Object[] {key, SELECT_CHECKPOINTDATA});
-		Connection conn = null;
-		PreparedStatement statement = null;
-		ResultSet rs = null;
-		ObjectInputStream objectIn = null;
-		CheckpointData data = null;
-		try {
-			conn = getConnection();
-			statement = conn.prepareStatement(SELECT_CHECKPOINTDATA);
-			statement.setObject(1, key);
-			rs = statement.executeQuery();
-			if (rs.next()) {
-				byte[] buf = rs.getBytes("obj");
-				data = (CheckpointData)deserializeObject(buf);
-			}
-		} catch (SQLException e) {
-			throw new PersistenceException(e);
-		} catch (IOException e) {
-			throw new PersistenceException(e);
-		} catch (ClassNotFoundException e) {
-			throw new PersistenceException(e);
-		} finally {
-			if (objectIn != null) {
-				try {
-					objectIn.close();
-				} catch (IOException e) {
-					throw new PersistenceException(e);
-				}
-			}
-			cleanupConnection(conn, rs, statement);
-		}
-		logger.exiting(CLASSNAME, "queryCheckpointData");
-		return data;	
-	}
-
-
-	/**
-	 * insert data to DB table
-	 * 
-	 * @param key - the IPersistenceDataKey object
-	 * @param value - serializable object to store  
-	 * 
-	 * Ex. insert into tablename values(?, ?)
-	 */
-	private <T> void insertCheckpointData(Object key, T value) {
-		logger.entering(CLASSNAME, "insertCheckpointData", new Object[] {key, value});
-		Connection conn = null;
-		PreparedStatement statement = null;
-		ByteArrayOutputStream baos = null;
-		ObjectOutputStream oout = null;
-		byte[] b;
-		try {
-			conn = getConnection();
-			statement = conn.prepareStatement(INSERT_CHECKPOINTDATA);
-			baos = new ByteArrayOutputStream();
-			oout = new ObjectOutputStream(baos);
-			oout.writeObject(value);
-
-			b = baos.toByteArray();
-
-			statement.setObject(1, key);
-			statement.setBytes(2, b);
-			statement.executeUpdate();
-		} catch (SQLException e) {
-			throw new PersistenceException(e);
-		} catch (IOException e) {
-			throw new PersistenceException(e);
-		} finally {
-			if (baos != null) {
-				try {
-					baos.close();
-				} catch (IOException e) {
-					throw new PersistenceException(e);
-				}
-			}
-			if (oout != null) {
-				try {
-					oout.close();
-				} catch (IOException e) {
-					throw new PersistenceException(e);
-				}
-			}
-			cleanupConnection(conn, null, statement);
-		}
-		logger.exiting(CLASSNAME, "insertCheckpointData");
-	}
-
-	/**
-	 * update data in DB table
-	 * 
-	 * @param value - serializable object to store 
-	 * @param key - the IPersistenceDataKey object
-	 * @param query - SQL statement to execute. 
-	 * 
-	 * Ex. update tablename set obj = ? where id = ?
-	 */
-	private void updateCheckpointData(Object key, CheckpointData value) {
-		logger.entering(CLASSNAME, "updateCheckpointData", new Object[] {key, value});
-		Connection conn = null;
-		PreparedStatement statement = null;
-		ByteArrayOutputStream baos = null;
-		ObjectOutputStream oout = null;
-		byte[] b;
-		try {
-			conn = getConnection();
-			statement = conn.prepareStatement(UPDATE_CHECKPOINTDATA);
-			baos = new ByteArrayOutputStream();
-			oout = new ObjectOutputStream(baos);
-			oout.writeObject(value);
-
-			b = baos.toByteArray();
-
-			statement.setBytes(1, b);
-			statement.setObject(2, key);
-			statement.executeUpdate();
-		} catch (SQLException e) {
-			throw new PersistenceException(e);
-		} catch (IOException e) {
-			throw new PersistenceException(e);
-		} finally {
-			if (baos != null) {
-				try {
-					baos.close();
-				} catch (IOException e) {
-					throw new PersistenceException(e);
-				}
-			}
-			if (oout != null) {
-				try {
-					oout.close();
-				} catch (IOException e) {
-					throw new PersistenceException(e);
-				}
-			}
-			cleanupConnection(conn, null, statement);
-		}
-		logger.exiting(CLASSNAME, "updateCheckpointData");
-	}
-
-
 
 	/**
 	 * closes connection, result set and statement
@@ -972,7 +996,7 @@ public class JDBCPersistenceManagerImpl implements IPersistenceManagerService, J
 
 		try {
 			conn = getConnection();
-			statement = conn.prepareStatement("select A.* from stepexecutioninstancedata as A inner join executioninstancedata as B on A.jobexecid = B.jobexecid where B.jobinstanceid = ? order by A.stepexecid desc"); 
+			statement = conn.prepareStatement("select A.* from stepexecutioninstancedata A inner join executioninstancedata B on A.jobexecid = B.jobexecid where B.jobinstanceid = ? order by A.stepexecid desc"); 
 			statement.setLong(1, instanceId);
 			rs = statement.executeQuery();
 			while (rs.next()) {
@@ -1343,7 +1367,7 @@ public class JDBCPersistenceManagerImpl implements IPersistenceManagerService, J
 
 		try {
 			conn = getConnection();
-			statement = conn.prepareStatement("select A.jobexecid, A.createtime, A.starttime, A.endtime, A.updatetime, A.parameters, A.jobinstanceid, A.batchstatus, A.exitstatus, B.name from executioninstancedata as A inner join jobinstancedata as B on A.jobinstanceid = B.jobinstanceid where jobexecid = ?"); 
+			statement = conn.prepareStatement("select A.jobexecid, A.createtime, A.starttime, A.endtime, A.updatetime, A.parameters, A.jobinstanceid, A.batchstatus, A.exitstatus, B.name from executioninstancedata A inner join jobinstancedata B on A.jobinstanceid = B.jobinstanceid where jobexecid = ?"); 
 			statement.setLong(1, jobExecutionId);
 			rs = statement.executeQuery();
 
@@ -1377,7 +1401,7 @@ public class JDBCPersistenceManagerImpl implements IPersistenceManagerService, J
 
 		try {
 			conn = getConnection();
-			statement = conn.prepareStatement("select A.jobexecid, A.jobinstanceid, A.createtime, A.starttime, A.endtime, A.updatetime, A.parameters, A.batchstatus, A.exitstatus, B.name from executioninstancedata as A inner join jobinstancedata as B ON A.jobinstanceid = B.jobinstanceid where A.jobinstanceid = ?"); 
+			statement = conn.prepareStatement("select A.jobexecid, A.jobinstanceid, A.createtime, A.starttime, A.endtime, A.updatetime, A.parameters, A.batchstatus, A.exitstatus, B.name from executioninstancedata A inner join jobinstancedata B ON A.jobinstanceid = B.jobinstanceid where A.jobinstanceid = ?"); 
 			statement.setLong(1, jobInstanceId);
 			rs = statement.executeQuery();
 			while (rs.next()) {
@@ -1529,8 +1553,8 @@ public class JDBCPersistenceManagerImpl implements IPersistenceManagerService, J
 
 		try {
 			conn = getConnection();
-			statement = conn.prepareStatement("select A.obj from jobstatus as A inner join " + 
-					"executioninstancedata as B on A.id = B.jobinstanceid where B.jobexecid = ?");
+			statement = conn.prepareStatement("select A.obj from jobstatus A inner join " + 
+					"executioninstancedata B on A.id = B.jobinstanceid where B.jobexecid = ?");
 			statement.setLong(1, executionId);
 			rs = statement.executeQuery();
 			byte[] buf = null;

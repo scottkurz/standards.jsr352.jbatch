@@ -14,10 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
-package com.ibm.jbatch.container.persistence;
+package com.ibm.jbatch.container.checkpoint;
 
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectOutputStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -26,8 +24,10 @@ import javax.batch.api.chunk.CheckpointAlgorithm;
 import com.ibm.jbatch.container.artifact.proxy.ItemReaderProxy;
 import com.ibm.jbatch.container.artifact.proxy.ItemWriterProxy;
 import com.ibm.jbatch.container.exception.BatchContainerRuntimeException;
-import com.ibm.jbatch.container.exception.BatchContainerServiceException;
+import com.ibm.jbatch.container.services.CheckpointDataKey;
+import com.ibm.jbatch.container.services.CheckpointDataPair;
 import com.ibm.jbatch.container.services.IPersistenceManagerService;
+import com.ibm.jbatch.container.services.impl.CheckpointDataPairImpl;
 import com.ibm.jbatch.container.servicesmanager.ServicesManager;
 import com.ibm.jbatch.container.servicesmanager.ServicesManagerImpl;
 
@@ -99,41 +99,16 @@ public class CheckpointManager {
 	
 	public void checkpoint() {
 		String method = "checkpoint";
-		if(logger.isLoggable(Level.FINER)) { logger.entering(sourceClass, method, " [executionId " + executionId + "] "); }
+		logger.entering(sourceClass, method, " [executionId " + executionId + "] ");
 
-		ByteArrayOutputStream readerChkptBA = new ByteArrayOutputStream();
-		ByteArrayOutputStream writerChkptBA = new ByteArrayOutputStream();
-		
-		ObjectOutputStream readerOOS = null, writerOOS = null;
-		CheckpointDataKey readerChkptDK = null, writerChkptDK = null;
-		
-		try{
-			
-			readerOOS = new ObjectOutputStream(readerChkptBA);
-			readerOOS.writeObject(readerProxy.checkpointInfo());
-			readerOOS.close();
-			CheckpointData readerChkptData  = new CheckpointData(jobInstanceID, stepId, "READER");
-			readerChkptData.setRestartToken(readerChkptBA.toByteArray());
-			readerChkptDK = new CheckpointDataKey(jobInstanceID, stepId, "READER");
-			
-			_persistenceManagerService.updateCheckpointData(readerChkptDK, readerChkptData);
-			
-			writerOOS = new ObjectOutputStream(writerChkptBA);
-			writerOOS.writeObject(writerProxy.checkpointInfo());
-			writerOOS.close();
-			CheckpointData writerChkptData = new CheckpointData(jobInstanceID, stepId, "WRITER");
-			writerChkptData.setRestartToken(writerChkptBA.toByteArray());
-			writerChkptDK = new CheckpointDataKey(jobInstanceID, stepId, "WRITER");
+		CheckpointDataKey checkpointKey = new CheckpointDataKey(jobInstanceID, stepId);
 
-			_persistenceManagerService.updateCheckpointData(writerChkptDK, writerChkptData);
-			
-		}
-		catch (Exception ex){
-			// is this what I should be throwing here?
-			throw new BatchContainerServiceException("Cannot persist the checkpoint data for [" + stepId + "]", ex);
-		}
+		CheckpointDataPair checkpointDataPair = new CheckpointDataPairImpl();
+		checkpointDataPair.setReaderCheckpoint(readerProxy.checkpointInfo());
+		checkpointDataPair.setWriterCheckpoint(writerProxy.checkpointInfo());
+		_persistenceManagerService.updateCheckpointData(checkpointKey, checkpointDataPair);
 
-		if(logger.isLoggable(Level.FINER)) { logger.exiting(sourceClass, method, " [executionId " + executionId + "] ");}
+		logger.exiting(sourceClass, method, " [executionId " + executionId + "] ");
 
 	}
 	

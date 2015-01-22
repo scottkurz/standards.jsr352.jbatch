@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
-package com.ibm.jbatch.container.persistence;
+package com.ibm.jbatch.container.checkpoint;
 
 import java.util.Date;
 import java.util.logging.Level;

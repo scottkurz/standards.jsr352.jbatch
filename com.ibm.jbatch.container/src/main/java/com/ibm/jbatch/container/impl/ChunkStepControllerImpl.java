@@ -46,6 +46,8 @@ import com.ibm.jbatch.container.artifact.proxy.RetryWriteListenerProxy;
 import com.ibm.jbatch.container.artifact.proxy.SkipProcessListenerProxy;
 import com.ibm.jbatch.container.artifact.proxy.SkipReadListenerProxy;
 import com.ibm.jbatch.container.artifact.proxy.SkipWriteListenerProxy;
+import com.ibm.jbatch.container.checkpoint.CheckpointManager;
+import com.ibm.jbatch.container.checkpoint.ItemCheckpointAlgorithm;
 import com.ibm.jbatch.container.context.impl.MetricImpl;
 import com.ibm.jbatch.container.context.impl.StepContextImpl;
 import com.ibm.jbatch.container.exception.BatchContainerRuntimeException;
@@ -53,9 +55,8 @@ import com.ibm.jbatch.container.exception.BatchContainerServiceException;
 import com.ibm.jbatch.container.exception.TransactionManagementException;
 import com.ibm.jbatch.container.jobinstance.RuntimeJobExecution;
 import com.ibm.jbatch.container.persistence.CheckpointData;
-import com.ibm.jbatch.container.persistence.CheckpointDataKey;
-import com.ibm.jbatch.container.persistence.CheckpointManager;
-import com.ibm.jbatch.container.persistence.ItemCheckpointAlgorithm;
+import com.ibm.jbatch.container.services.CheckpointDataKey;
+import com.ibm.jbatch.container.services.CheckpointDataPair;
 import com.ibm.jbatch.container.services.IPersistenceManagerService;
 import com.ibm.jbatch.container.servicesmanager.ServicesManager;
 import com.ibm.jbatch.container.servicesmanager.ServicesManagerImpl;
@@ -84,7 +85,6 @@ public class ChunkStepControllerImpl extends SingleThreadedStepControllerImpl {
 	private ServicesManager servicesManager = ServicesManagerImpl.getInstance();
 	private IPersistenceManagerService _persistenceManagerService = null;
 	private SkipHandler skipHandler = null;
-	CheckpointDataKey readerChkptDK, writerChkptDK = null;
 	CheckpointData readerChkptData = null;
 	CheckpointData writerChkptData = null;
 	List<ChunkListenerProxy> chunkListeners = null;
@@ -891,70 +891,19 @@ public class ChunkStepControllerImpl extends SingleThreadedStepControllerImpl {
 			logger.entering(sourceClass, sourceMethod);
 
 		_persistenceManagerService = servicesManager.getPersistenceManagerService();
-		readerChkptDK = new CheckpointDataKey(jobExecutionImpl.getJobInstance().getInstanceId(), step.getId(), "READER");
-		CheckpointData readerChkptData = _persistenceManagerService.getCheckpointData(readerChkptDK);
-		try {
-
-			// check for data in backing store
-			if (readerChkptData != null) {
-
-				byte[] readertoken = readerChkptData.getRestartToken();
-				ByteArrayInputStream readerChkptBA = new ByteArrayInputStream(readertoken);
-				TCCLObjectInputStream readerOIS = null;
-				try {
-					readerOIS = new TCCLObjectInputStream(readerChkptBA);
-					readerProxy.open((Serializable) readerOIS.readObject());
-					readerOIS.close();
-				} catch (Exception ex) {
-					// is this what I should be throwing here?
-							throw new BatchContainerServiceException("Cannot persist the checkpoint data for [" + step.getId() + "]", ex);
-				}
-			} else {
-				// no chkpt data exists in the backing store
-				readerChkptData = null;
-				readerProxy.open(null);
-			}
-		} catch (ClassCastException e) {
-			logger.warning("Expected CheckpointData but found" + readerChkptData );
-			throw new IllegalStateException("Expected CheckpointData but found" + readerChkptData );
+		CheckpointDataKey key = new CheckpointDataKey(jobExecutionImpl.getJobInstance().getInstanceId(), step.getId());
+		CheckpointDataPair checkpointData = _persistenceManagerService.getCheckpointData(key);
+		if (checkpointData != null) {
+			Serializable readerChkpt = checkpointData.getReaderCheckpoint();
+			readerProxy.open((Serializable) readerChkpt);
+			Serializable writerChkpt = checkpointData.getWriterCheckpoint();
+			writerProxy.open((Serializable) writerChkpt);
+		} else {
+			_persistenceManagerService.createCheckpointData(key);
+			// Null is a valid value to indicate there hasn't been a checkpoint yet.
+			readerProxy.open(null);
+			writerProxy.open(null);
 		}
-
-		writerChkptDK = new CheckpointDataKey(jobExecutionImpl.getJobInstance().getInstanceId(), step.getId(), "WRITER");
-		CheckpointData writerChkptData = _persistenceManagerService.getCheckpointData(writerChkptDK);
-
-		try {
-			// check for data in backing store
-			if (writerChkptData != null) {
-				byte[] writertoken = writerChkptData.getRestartToken();
-				ByteArrayInputStream writerChkptBA = new ByteArrayInputStream(writertoken);
-				TCCLObjectInputStream writerOIS = null;
-				try {
-					writerOIS = new TCCLObjectInputStream(writerChkptBA);
-					writerProxy.open((Serializable) writerOIS.readObject());
-					writerOIS.close();
-				} catch (Exception ex) {
-					// is this what I should be throwing here?
-							throw new BatchContainerServiceException("Cannot persist the checkpoint data for [" + step.getId() + "]", ex);
-				}
-			} else {
-				// no chkpt data exists in the backing store
-				writerChkptData = null;
-				writerProxy.open(null);
-			}
-		} catch (ClassCastException e) {
-			logger.warning("Expected Checkpoint but found" + writerChkptData);
-			throw new IllegalStateException("Expected Checkpoint but found" + writerChkptData);
-		}
-
-		// set up metrics
-		// stepContext.addMetric(MetricImpl.Counter.valueOf("READ_COUNT"), 0);
-		// stepContext.addMetric(MetricImpl.Counter.valueOf("WRITE_COUNT"), 0);
-		// stepContext.addMetric(MetricImpl.Counter.valueOf("READ_SKIP_COUNT"),
-		// 0);
-		// stepContext.addMetric(MetricImpl.Counter.valueOf("PROCESS_SKIP_COUNT"),
-		// 0);
-		// stepContext.addMetric(MetricImpl.Counter.valueOf("WRITE_SKIP_COUNT"),
-		// 0);
 
 		if (logger.isLoggable(Level.FINE))
 			logger.exiting(sourceClass, sourceMethod);
@@ -1083,60 +1032,31 @@ public class ChunkStepControllerImpl extends SingleThreadedStepControllerImpl {
 
 	private void positionReaderAtCheckpoint() {
 		_persistenceManagerService = servicesManager.getPersistenceManagerService();
-		readerChkptDK = new CheckpointDataKey(jobExecutionImpl.getJobInstance().getInstanceId(), step.getId(), "READER");
+		CheckpointDataKey checkpointKey = new CheckpointDataKey(jobExecutionImpl.getJobInstance().getInstanceId(), step.getId());
 
-		CheckpointData readerData = _persistenceManagerService.getCheckpointData(readerChkptDK);
-		try {
-			// check for data in backing store
-			if (readerData != null) {
-				byte[] readertoken = readerData.getRestartToken();
-				ByteArrayInputStream readerChkptBA = new ByteArrayInputStream(readertoken);
-				TCCLObjectInputStream readerOIS = null;
-				try {
-					readerOIS = new TCCLObjectInputStream(readerChkptBA);
-					readerProxy.open((Serializable) readerOIS.readObject());
-					readerOIS.close();
-				} catch (Exception ex) {
-					// is this what I should be throwing here?
-							throw new BatchContainerServiceException("Cannot persist the checkpoint data for [" + step.getId() + "]", ex);
-				}
-			} else {
-				// no chkpt data exists in the backing store
-				readerData = null;
-				readerProxy.open(null);
-			}
-		} catch (ClassCastException e) {
-			throw new IllegalStateException("Expected CheckpointData but found" + readerData);
+		CheckpointDataPair checkpointData =  _persistenceManagerService.getCheckpointData(checkpointKey);
+		if (checkpointData == null) {
+			// An entry always should have been inserted by now, even if it wrappers a null value returned by checkpointInfo()
+			String msg = "Didn't find checkpoint data for key = " + checkpointKey;
+			logger.severe(msg);
+			throw new IllegalStateException(msg);
 		}
+		Serializable readerCheckpointInfo =  checkpointData.getReaderCheckpoint();
+		readerProxy.open(readerCheckpointInfo);
 	}
 
 	private void positionWriterAtCheckpoint() {
 		_persistenceManagerService = servicesManager.getPersistenceManagerService();
-		writerChkptDK = new CheckpointDataKey(jobExecutionImpl.getJobInstance().getInstanceId(), step.getId(), "WRITER");
+		CheckpointDataKey checkpointKey = new CheckpointDataKey(jobExecutionImpl.getJobInstance().getInstanceId(), step.getId());
 
-		CheckpointData writerData =  _persistenceManagerService.getCheckpointData(writerChkptDK);
-
-		try {
-			// check for data in backing store
-			if (writerData != null) {
-				byte[] writertoken = writerData.getRestartToken();
-				ByteArrayInputStream writerChkptBA = new ByteArrayInputStream(writertoken);
-				TCCLObjectInputStream writerOIS = null;
-				try {
-					writerOIS = new TCCLObjectInputStream(writerChkptBA);
-					writerProxy.open((Serializable) writerOIS.readObject());
-					writerOIS.close();
-				} catch (Exception ex) {
-					// is this what I should be throwing here?
-							throw new BatchContainerServiceException("Cannot persist the checkpoint data for [" + step.getId() + "]", ex);
-				}
-			} else {
-				// no chkpt data exists in the backing store
-				writerData = null;
-				writerProxy.open(null);
-			}
-		} catch (ClassCastException e) {
-			throw new IllegalStateException("Expected CheckpointData but found" + writerData);
+		CheckpointDataPair checkpointData =  _persistenceManagerService.getCheckpointData(checkpointKey);
+		if (checkpointData == null) {
+			// An entry always should have been inserted by now, even if it wrappers a null value returned by checkpointInfo()
+			String msg = "Didn't find checkpoint data for key = " + checkpointKey;
+			logger.severe(msg);
+			throw new IllegalStateException(msg);
 		}
+		Serializable writerCheckpointInfo =  checkpointData.getWriterCheckpoint();
+		writerProxy.open(writerCheckpointInfo);;
 	}
 }

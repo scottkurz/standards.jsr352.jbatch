@@ -16,6 +16,7 @@
 */
 package com.ibm.jbatch.container.services;
 
+import java.io.Serializable;
 import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
@@ -28,11 +29,11 @@ import javax.batch.runtime.JobInstance;
 import javax.batch.runtime.StepExecution;
 
 import com.ibm.jbatch.container.context.impl.StepContextImpl;
+import com.ibm.jbatch.container.exception.PersistenceException;
 import com.ibm.jbatch.container.jobinstance.RuntimeFlowInSplitExecution;
 import com.ibm.jbatch.container.jobinstance.RuntimeJobExecution;
 import com.ibm.jbatch.container.jobinstance.StepExecutionImpl;
 import com.ibm.jbatch.container.persistence.CheckpointData;
-import com.ibm.jbatch.container.persistence.CheckpointDataKey;
 import com.ibm.jbatch.container.status.JobStatus;
 import com.ibm.jbatch.container.status.StepStatus;
 import com.ibm.jbatch.spi.services.IBatchServiceBase;
@@ -202,12 +203,30 @@ public interface IPersistenceManagerService extends IBatchServiceBase {
 	 */
 	public String getTagName(long jobExecutionId);
 
+	/**
+	 * Note the responsibility to create an entry even though
+	 * the current checkpointInfo value may be 'null'.
+	 * 
+	 * Subjob: yes
+	 * 
+	 * @param key
+	 */
+    public void createCheckpointData(CheckpointDataKey key);
 
-    public void updateCheckpointData(CheckpointDataKey key, CheckpointData value);
+    /**
+     * 
+     * @param key
+     * @param checkpointInfo
+     * @throws IllegalArgumentException
+     */
+    public void updateCheckpointData(CheckpointDataKey key, CheckpointDataPair value) throws IllegalArgumentException;
 
-	CheckpointData getCheckpointData(CheckpointDataKey key);
-
-	void createCheckpointData(CheckpointDataKey key, CheckpointData value);
+    /**
+     * 
+     * @param key
+     * @return a non-null pair if entry exists.  Returns null if entry doesn't exist
+     */
+	public CheckpointDataPair getCheckpointData(CheckpointDataKey key);
 
 	long getMostRecentExecutionId(long jobInstanceId);
 

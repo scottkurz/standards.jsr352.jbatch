@@ -13,75 +13,56 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-*/
+ */
 package com.ibm.jbatch.container.persistence;
+import java.io.ByteArrayInputStream;
 import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
+
+import com.ibm.jbatch.container.exception.BatchContainerRuntimeException;
+import com.ibm.jbatch.container.services.CheckpointDataKey;
+import com.ibm.jbatch.container.util.TCCLObjectInputStream;
+
 /**
  * 
  */
-public class CheckpointData implements Serializable {
-	
-	/**
-	 * 
-	 */
+public final class CheckpointData implements Serializable {
+
+	public enum Type {READER, WRITER};
+
 	private static final long serialVersionUID = 1L;
 	private long _jobInstanceId;
+
+	/**
+	 * Enum -constrained values but we won't change at this point
+	 * See: {@link CheckpointDataKey.Type}
+	 */
 	private String _batchDataStreamName;
 	private String _stepName;
 	private byte[] _restartToken;
 	
-	public CheckpointData (
-			long jobInstanceId,
-		String stepname,
-		String batchDataStreamName) {
-		if(stepname != null && batchDataStreamName != null) {
+
+	// Remove "NOTSET" support.  While this would have allowed us to distinguish between an "empty" entry and one
+	// set with a 'null' checkpointInfo ('null' being a valid value), this also requires extra logic on the deserialization path
+	// to consider.  I don't see the value in being able to distinguish this.
+	// 
+	// In the past the "NOTSET" was never serialized.  We didn't create the entry until the first checkpoint, at which time
+	// we would use the value of 'null' if it existed.   So we don't have to worry about supporting it on deserialize.
+	public CheckpointData (long jobInstanceId, String stepname, Type type) {
+		if(stepname != null && type != null) {
 			_jobInstanceId = jobInstanceId;
-			_batchDataStreamName = batchDataStreamName;
+			_batchDataStreamName = type.toString();
 			_stepName = stepname;
-			try {
-				_restartToken = new String("NOTSET").getBytes("UTF8");
-			} catch (UnsupportedEncodingException e) {
-				throw new RuntimeException("Doesn't support UTF-8", e);
-			}
 		} else {
 			throw new RuntimeException("Invalid parameters to CheckpointData jobInstanceId: " + _jobInstanceId + 
-					" BDS: " + batchDataStreamName + " stepName: " + stepname);
+					" Type: " + _batchDataStreamName + " stepName: " + stepname);
 		}
-	}
-
-	public long getjobInstanceId() {
-		return _jobInstanceId;
-	}
-
-	public void setjobInstanceId(long id) {
-		_jobInstanceId = id;
-	}
-
-	public String getBatchDataStreamName() {
-		return _batchDataStreamName;
-	}
-
-	public void setBatchDataStreamName(String dataStreamName) {
-		_batchDataStreamName = dataStreamName;
-	}
-
-	public String getStepName() {
-		return _stepName;
-	}
-
-	public void setStepName(String name) {
-		_stepName = name;
-	}
-
-	public byte[] getRestartToken() {
-		return _restartToken;
 	}
 
 	public void setRestartToken(byte[] token) {
 		_restartToken = token;
 	}
-	
+
 	public String toString() {
 		String restartString = null;
 		try {
@@ -90,11 +71,27 @@ public class CheckpointData implements Serializable {
 			restartString = "<bytes not UTF-8>";
 		}
 		return " jobInstanceId: " + _jobInstanceId + " stepId: " + this._stepName + " bdsName: " + this._batchDataStreamName +
-		" restartToken: [UTF8-bytes: " + restartString;
-		
+				" restartToken: [UTF8-bytes: " + restartString;
 	}
-	
-	
-	
+
+	public Serializable getDeserializedRestartToken() {
+
+		if (_restartToken == null) {
+			return null;
+		}
+
+		Serializable retVal = null;
+		ByteArrayInputStream bais = new ByteArrayInputStream(_restartToken);
+		TCCLObjectInputStream ois = null;
+		try {
+			ois = new TCCLObjectInputStream(bais);
+			retVal = (Serializable)ois.readObject();
+			ois.close();
+		} catch (Exception ex) {
+			// is this what I should be throwing here?
+			throw new BatchContainerRuntimeException("Problem deserializing restart token for jobInstanceId: " + _jobInstanceId + " stepId: " + this._stepName + " bdsName: " + this._batchDataStreamName, ex);
+		}
+		return retVal;
+	}
 }
 
