@@ -42,14 +42,13 @@ import com.ibm.jbatch.container.exception.BatchContainerRuntimeException;
 import com.ibm.jbatch.container.exception.BatchContainerServiceException;
 import com.ibm.jbatch.container.jobinstance.RuntimeJobExecution;
 import com.ibm.jbatch.container.jobinstance.StepExecutionImpl;
-import com.ibm.jbatch.container.persistence.PersistentDataWrapper;
 import com.ibm.jbatch.container.services.IBatchKernelService;
 import com.ibm.jbatch.container.services.IJobStatusManagerService;
 import com.ibm.jbatch.container.services.IPersistenceManagerService;
+import com.ibm.jbatch.container.services.IStepStatus;
 import com.ibm.jbatch.container.servicesmanager.ServicesManagerImpl;
 import com.ibm.jbatch.container.status.ExecutionStatus;
 import com.ibm.jbatch.container.status.ExtendedBatchStatus;
-import com.ibm.jbatch.container.status.StepStatus;
 import com.ibm.jbatch.container.util.PartitionDataWrapper;
 import com.ibm.jbatch.jsl.model.JSLProperties;
 import com.ibm.jbatch.jsl.model.Property;
@@ -68,7 +67,7 @@ public abstract class BaseStepControllerImpl implements IExecutionElementControl
 
 	protected StepContextImpl stepContext;
 	protected Step step;
-	protected StepStatus stepStatus;
+	protected IStepStatus stepStatus;
 
 	protected BlockingQueue<PartitionDataWrapper> analyzerStatusQueue = null;
 
@@ -371,18 +370,7 @@ public abstract class BaseStepControllerImpl implements IExecutionElementControl
 	}
 
 	protected void persistUserData() {
-		ByteArrayOutputStream persistentBAOS = new ByteArrayOutputStream();
-		ObjectOutputStream persistentDataOOS = null;
-
-		try {
-			persistentDataOOS = new ObjectOutputStream(persistentBAOS);
-			persistentDataOOS.writeObject(stepContext.getPersistentUserData());
-			persistentDataOOS.close();
-		} catch (Exception e) {
-			throw new BatchContainerServiceException("Cannot persist the persistent user data for the step.", e);
-		}
-
-		stepStatus.setPersistentUserData(new PersistentDataWrapper(persistentBAOS.toByteArray()));
+		stepStatus.setPersistentUserData(stepContext.getPersistentUserData());
 		_jobStatusService.updateStepStatus(stepStatus.getStepExecutionId(), stepStatus);
 	}
 

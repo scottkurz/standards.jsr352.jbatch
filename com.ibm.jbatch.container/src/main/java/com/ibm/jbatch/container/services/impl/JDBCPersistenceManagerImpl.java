@@ -68,6 +68,7 @@ import com.ibm.jbatch.container.services.CheckpointDataKey;
 import com.ibm.jbatch.container.services.CheckpointDataPair;
 import com.ibm.jbatch.container.services.IJobExecution;
 import com.ibm.jbatch.container.services.IPersistenceManagerService;
+import com.ibm.jbatch.container.services.IStepStatus;
 import com.ibm.jbatch.container.status.JobStatus;
 import com.ibm.jbatch.container.status.StepStatus;
 import com.ibm.jbatch.container.util.TCCLObjectInputStream;
@@ -2156,12 +2157,11 @@ public class JDBCPersistenceManagerImpl implements IPersistenceManagerService, J
 	 * @see com.ibm.jbatch.container.services.IPersistenceManagerService#getStepStatus(long, java.lang.String)
 	 */
 	@Override
-	public StepStatus getStepStatus(long instanceId, String stepName) {
+	public IStepStatus getStepStatus(long instanceId, String stepName) {
 		logger.entering(CLASSNAME, "getStepStatus", new Object[] {instanceId, stepName});
 		Connection conn = null;
 		PreparedStatement statement = null;
 		ResultSet rs = null;
-		RuntimeJobExecution jobExecution = null;
 		String query = "SELECT obj FROM stepstatus WHERE id IN ("
 				+ "SELECT B.stepexecid FROM executioninstancedata A INNER JOIN stepexecutioninstancedata B ON A.jobexecid = B.jobexecid " 
 				+ "WHERE A.jobinstanceid = ? and B.stepname = ?)";
@@ -2174,6 +2174,7 @@ public class JDBCPersistenceManagerImpl implements IPersistenceManagerService, J
 			statement.setString(2, stepName);
 			rs = statement.executeQuery();
 			if(rs.next()) {
+				// Deserialize into our own format.
 				stepStatus = (StepStatus)deserializeObject(rs.getBytes(1));
 			}
 		} catch (SQLException e) {
@@ -2193,7 +2194,7 @@ public class JDBCPersistenceManagerImpl implements IPersistenceManagerService, J
 	 * @see com.ibm.jbatch.container.services.IPersistenceManagerService#updateStepStatus(long, com.ibm.jbatch.container.status.StepStatus)
 	 */
 	@Override
-	public void updateStepStatus(long stepExecutionId, StepStatus stepStatus) {
+	public void updateStepStatus(long stepExecutionId, IStepStatus stepStatus) {
 		logger.entering(CLASSNAME, "updateStepStatus", new Object[] {stepExecutionId, stepStatus});
 
 		if (logger.isLoggable(Level.FINE)) {
@@ -2204,7 +2205,9 @@ public class JDBCPersistenceManagerImpl implements IPersistenceManagerService, J
 		try {
 			conn = getConnection();
 			statement = conn.prepareStatement("UPDATE stepstatus SET obj = ? WHERE id = ?");
-			statement.setBytes(1, serializeObject(stepStatus));
+			// Convert to our own persistence-ready format
+			StepStatus stepStatusImpl = new StepStatus(stepStatus);
+			statement.setBytes(1, serializeObject(stepStatusImpl));
 			statement.setLong(2, stepExecutionId);
 			statement.executeUpdate();
 		} catch (SQLException e) {

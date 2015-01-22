@@ -29,13 +29,10 @@ import javax.batch.runtime.JobInstance;
 import javax.batch.runtime.StepExecution;
 
 import com.ibm.jbatch.container.context.impl.StepContextImpl;
-import com.ibm.jbatch.container.exception.PersistenceException;
 import com.ibm.jbatch.container.jobinstance.RuntimeFlowInSplitExecution;
 import com.ibm.jbatch.container.jobinstance.RuntimeJobExecution;
 import com.ibm.jbatch.container.jobinstance.StepExecutionImpl;
-import com.ibm.jbatch.container.persistence.CheckpointData;
 import com.ibm.jbatch.container.status.JobStatus;
-import com.ibm.jbatch.container.status.StepStatus;
 import com.ibm.jbatch.spi.services.IBatchServiceBase;
 
 public interface IPersistenceManagerService extends IBatchServiceBase {
@@ -172,19 +169,21 @@ public interface IPersistenceManagerService extends IBatchServiceBase {
 	 * @param stepExecId the parent step execution id
 	 * @return the StepStatus
 	 */
-	public StepStatus createStepStatus(long stepExecId);
+	public IStepStatus createStepStatus(long stepExecId);
 
 	/**
 	 * Get a StepStatus
 	 *
 	 * The parent job instance id and this step name from the job xml
 	 * are used to determine if the current step execution have previously run.
+	 * 
+	 * Return {@code null} if there is no entry for this in the repository.
 	 *
 	 * @param instanceId the parent job instance id
 	 * @param stepName the step name
 	 * @return the StepStatus
 	 */
-	public StepStatus getStepStatus(long instanceId, String stepName);
+	public IStepStatus getStepStatus(long instanceId, String stepName);
 
 	/**
 	 * Update a StepStatus
@@ -192,7 +191,7 @@ public interface IPersistenceManagerService extends IBatchServiceBase {
 	 * @param stepExecutionId the parent step execution id
 	 * @param stepStatus the step status to be updated
 	 */
-	public void updateStepStatus(long stepExecutionId, StepStatus stepStatus);
+	public void updateStepStatus(long stepExecutionId, IStepStatus stepStatus);
 
 
 	/**

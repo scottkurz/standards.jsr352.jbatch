@@ -17,15 +17,19 @@
 package com.ibm.jbatch.container.status;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
 import javax.batch.runtime.BatchStatus;
 
 import com.ibm.jbatch.container.exception.BatchContainerRuntimeException;
+import com.ibm.jbatch.container.exception.BatchContainerServiceException;
 import com.ibm.jbatch.container.persistence.PersistentDataWrapper;
+import com.ibm.jbatch.container.services.IStepStatus;
 import com.ibm.jbatch.container.util.TCCLObjectInputStream;
 
-public class StepStatus implements Serializable {
+public final class StepStatus implements Serializable, IStepStatus {
 
     /**
 	 * 
@@ -48,7 +52,22 @@ public class StepStatus implements Serializable {
         this.batchStatus = BatchStatus.STARTING;
     }
 
-    public void setBatchStatus(BatchStatus batchStatus) {
+    /**
+	 * @param stepStatus
+	 */
+	public StepStatus(IStepStatus stepStatus) {
+		stepExecutionId = stepStatus.getStepExecutionId();
+		batchStatus = stepStatus.getBatchStatus();
+		exitStatus = stepStatus.getExitStatus();
+		numPartitions = stepStatus.getNumPartitions();
+		startCount = stepStatus.getStartCount();
+		lastRunStepExecutionId = stepStatus.getLastRunStepExecutionId();
+		
+		// Special logic
+		setPersistentUserData(stepStatus.getPersistentUserData());
+	}
+
+	public void setBatchStatus(BatchStatus batchStatus) {
         this.batchStatus = batchStatus;
     }
 
@@ -88,8 +107,24 @@ public class StepStatus implements Serializable {
         return exitStatus;
     }
 
-    public void setPersistentUserData(PersistentDataWrapper persistentUserData) {
-        this.persistentUserData = persistentUserData;
+    public void setPersistentUserData(Serializable persistentUserData) {
+        this.persistentUserData = wrap(persistentUserData);
+    }
+    
+    private PersistentDataWrapper wrap(Serializable persistentUserData) {
+
+		ByteArrayOutputStream persistentBAOS = new ByteArrayOutputStream();
+		ObjectOutputStream persistentDataOOS = null;
+
+		try {
+			persistentDataOOS = new ObjectOutputStream(persistentBAOS);
+			persistentDataOOS.writeObject(persistentUserData);
+			persistentDataOOS.close();
+		} catch (Exception e) {
+			throw new BatchContainerServiceException("Cannot persist the persistent user data for the step.", e);
+		}
+		
+		return new PersistentDataWrapper(persistentBAOS.toByteArray());
     }
 
     public Serializable getPersistentUserData() {

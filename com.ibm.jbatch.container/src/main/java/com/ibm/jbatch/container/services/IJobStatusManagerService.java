@@ -62,12 +62,12 @@ public interface IJobStatusManagerService extends IBatchServiceBase {
      * @param stepExecutionId
      * @throws BatchContainerServiceException
      */
-    public abstract StepStatus createStepStatus(long stepExecutionId) throws BatchContainerServiceException;
+    public abstract IStepStatus createStepStatus(long stepExecutionId) throws BatchContainerServiceException;
 
-    public abstract void updateStepStatus(long stepExecutionId, StepStatus newStepStatus) throws BatchContainerServiceException;
+    public abstract void updateStepStatus(long stepExecutionId, IStepStatus newStepStatus) throws BatchContainerServiceException;
 
 
-    public abstract StepStatus getStepStatus(long jobInstanceId, String stepId) throws BatchContainerServiceException ;
+    public abstract IStepStatus getStepStatus(long jobInstanceId, String stepId) throws BatchContainerServiceException ;
 
 
 

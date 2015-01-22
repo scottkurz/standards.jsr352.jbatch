@@ -25,6 +25,7 @@ import com.ibm.jbatch.container.exception.BatchContainerServiceException;
 import com.ibm.jbatch.container.exception.PersistenceException;
 import com.ibm.jbatch.container.services.IJobStatusManagerService;
 import com.ibm.jbatch.container.services.IPersistenceManagerService;
+import com.ibm.jbatch.container.services.IStepStatus;
 import com.ibm.jbatch.container.servicesmanager.ServicesManager;
 import com.ibm.jbatch.container.servicesmanager.ServicesManagerImpl;
 import com.ibm.jbatch.container.status.JobStatus;
@@ -127,7 +128,7 @@ public class JobStatusManagerImpl implements IJobStatusManagerService {
     }
 
     @Override
-    public StepStatus createStepStatus(long stepExecutionId) throws BatchContainerServiceException {        
+    public IStepStatus createStepStatus(long stepExecutionId) throws BatchContainerServiceException {        
         return _persistenceManager.createStepStatus(stepExecutionId);
     }
 
@@ -135,18 +136,18 @@ public class JobStatusManagerImpl implements IJobStatusManagerService {
     /*
      * @return - StepStatus or null if one is unknown
      */
-    public StepStatus getStepStatus(long jobInstanceId, String stepId) throws BatchContainerServiceException {
+    public IStepStatus getStepStatus(long jobInstanceId, String stepId) throws BatchContainerServiceException {
         String method = "getStepStatus";
         logger.entering(CLASSNAME, method, new Object[] {jobInstanceId, stepId});
 
-        StepStatus stepStatus = _persistenceManager.getStepStatus(jobInstanceId, stepId);
+        IStepStatus stepStatus = _persistenceManager.getStepStatus(jobInstanceId, stepId);
 
         logger.exiting(CLASSNAME, method, stepStatus==null ? "<null>" : stepStatus);
         return stepStatus;
     }
 
     @Override 
-    public void updateStepStatus(long stepExecutionId, StepStatus newStepStatus) {
+    public void updateStepStatus(long stepExecutionId, IStepStatus newStepStatus) {
         String method = "updateStepStatus";
         logger.entering(CLASSNAME, method, new Object[] {stepExecutionId, newStepStatus});
         _persistenceManager.updateStepStatus(stepExecutionId, newStepStatus);
