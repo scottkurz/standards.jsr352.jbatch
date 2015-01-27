@@ -47,11 +47,11 @@ import javax.batch.runtime.StepExecution;
 
 import com.ibm.jbatch.container.services.IBatchKernelService;
 import com.ibm.jbatch.container.services.IJobExecution;
+import com.ibm.jbatch.container.services.IJobStatus;
 import com.ibm.jbatch.container.services.IJobStatusManagerService;
 import com.ibm.jbatch.container.services.IPersistenceManagerService;
 import com.ibm.jbatch.container.servicesmanager.ServicesManager;
 import com.ibm.jbatch.container.servicesmanager.ServicesManagerImpl;
-import com.ibm.jbatch.container.status.JobStatus;
 import com.ibm.jbatch.spi.BatchSecurityHelper;
 import com.ibm.jbatch.spi.services.IJobXMLLoaderService;
 
@@ -250,7 +250,7 @@ public class JobOperatorImpl implements JobOperator {
 			// for every job instance id
 			for (long id : instanceIds){
 				// get the job instance obj, add it to the list
-				JobStatus jobStatus = this._jobStatusManagerService.getJobStatus(id);
+				IJobStatus jobStatus = this._jobStatusManagerService.getJobStatus(id);
 				JobInstance jobInstance = jobStatus.getJobInstance();
 				logger.finest("Matched jobInstance = " + jobInstance.getInstanceId());
 				if(isAuthorized(jobInstance.getInstanceId())) {

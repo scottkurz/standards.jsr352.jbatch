@@ -21,12 +21,15 @@ import javax.batch.runtime.BatchStatus;
 import javax.batch.runtime.JobInstance;
 
 import com.ibm.jbatch.container.jobinstance.JobInstanceImpl;
+import com.ibm.jbatch.container.services.IJobStatus;
 
-public class JobStatus implements Serializable, Cloneable{
+public final class JobStatus implements Serializable, Cloneable, IJobStatus {
 
     private static final long serialVersionUID = 1L;
 
-    private JobInstance jobInstance;
+    // Changing this shouldn't affect the serialization/deserialization since we were always
+    // writing this same JobInstanceImpl previously.
+    private JobInstanceImpl jobInstance;
 
     private long jobInstanceId;
 
@@ -54,31 +57,76 @@ public class JobStatus implements Serializable, Cloneable{
         this.batchStatus = BatchStatus.STARTING;
     }
     
-    public long getJobInstanceId() {
+    /**
+	 * @param jobStatus
+	 */
+	public JobStatus(IJobStatus jobStatus) {
+		// When the object was instantiated from our own persistence service, we know we can cast this
+		// first field to JobInstanceImpl.
+		this.jobInstance = (JobInstanceImpl)jobStatus.getJobInstance();
+		this.jobInstanceId = jobStatus.getJobInstanceId();
+		this.currentStepId = jobStatus.getCurrentStepId();
+		this.batchStatus = jobStatus.getBatchStatus();
+		this.exitStatus = jobStatus.getExitStatus();
+		this.latestExecutionId = jobStatus.getLatestExecutionId();
+		this.restartOn = jobStatus.getRestartOn();
+	}
+
+	/* (non-Javadoc)
+	 * @see com.ibm.jbatch.container.status.IJobStatus#getJobInstanceId()
+	 */
+    @Override
+	public long getJobInstanceId() {
         return this.jobInstanceId;
     }
 
-    public void setJobInstance(JobInstance jobInstance) {
-        this.jobInstance = jobInstance;
+    /* (non-Javadoc)
+	 * @see com.ibm.jbatch.container.status.IJobStatus#setJobInstance(javax.batch.runtime.JobInstance)
+	 */
+    @Override
+	public void setJobInstance(JobInstance jobInstance) {
+		// When the object was instantiated from our own persistence service, we know we can cast this
+		// first field to JobInstanceImpl.
+        this.jobInstance = (JobInstanceImpl)jobInstance;
     }
     
-    public JobInstanceImpl getJobInstance() {
+    /* (non-Javadoc)
+	 * @see com.ibm.jbatch.container.status.IJobStatus#getJobInstance()
+	 */
+    @Override
+	public JobInstanceImpl getJobInstance() {
         return (JobInstanceImpl)jobInstance;
     }
 
-    public String getCurrentStepId() {
+    /* (non-Javadoc)
+	 * @see com.ibm.jbatch.container.status.IJobStatus#getCurrentStepId()
+	 */
+    @Override
+	public String getCurrentStepId() {
         return currentStepId;
     }
 
-    public void setCurrentStepId(String currentStepId) {
+    /* (non-Javadoc)
+	 * @see com.ibm.jbatch.container.status.IJobStatus#setCurrentStepId(java.lang.String)
+	 */
+    @Override
+	public void setCurrentStepId(String currentStepId) {
         this.currentStepId = currentStepId;
     }
 
-    public BatchStatus getBatchStatus() {
+    /* (non-Javadoc)
+	 * @see com.ibm.jbatch.container.status.IJobStatus#getBatchStatus()
+	 */
+    @Override
+	public BatchStatus getBatchStatus() {
         return batchStatus;
     }
 
-    public void setBatchStatus(BatchStatus batchStatus) {
+    /* (non-Javadoc)
+	 * @see com.ibm.jbatch.container.status.IJobStatus#setBatchStatus(javax.batch.runtime.BatchStatus)
+	 */
+    @Override
+	public void setBatchStatus(BatchStatus batchStatus) {
         this.batchStatus = batchStatus;
     }
 
@@ -90,23 +138,6 @@ public class JobStatus implements Serializable, Cloneable{
         this.latestExecutionId = latestExecutionId;
     }
 
-    /*
-    public int getUpdateCount() {
-        return updateCount;
-    }
-
-    public void setUpdateCount(int updateCount) {
-        this.updateCount = updateCount;
-    }
-
-    public int getRestartCount() {
-        return restartCount;
-    }
-
-    public void setRestartCount(int restartCount) {
-        this.restartCount = restartCount;
-    }
-    */
     @Override
     public String toString() {        
         
@@ -126,11 +157,27 @@ public class JobStatus implements Serializable, Cloneable{
         return exitStatus;
     }
 
-    public String getRestartOn() {
+    /* (non-Javadoc)
+	 * @see com.ibm.jbatch.container.status.IJobStatus#getRestartOn()
+	 */
+    @Override
+	public String getRestartOn() {
         return restartOn;
     }
 
-    public void setRestartOn(String restartOn) {
+    /* (non-Javadoc)
+	 * @see com.ibm.jbatch.container.status.IJobStatus#setRestartOn(java.lang.String)
+	 */
+    @Override
+	public void setRestartOn(String restartOn) {
         this.restartOn = restartOn;
     }
+
+	/* (non-Javadoc)
+	 * @see com.ibm.jbatch.container.services.IJobStatus#getJobXML()
+	 */
+	@Override
+	public String getJobXML() {
+		return jobInstance.getJobXML();
+	}
 }

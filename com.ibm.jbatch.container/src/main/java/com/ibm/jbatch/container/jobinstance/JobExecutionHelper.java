@@ -36,11 +36,11 @@ import com.ibm.jbatch.container.navigator.ModelNavigator;
 import com.ibm.jbatch.container.navigator.NavigatorFactory;
 import com.ibm.jbatch.container.services.IBatchKernelService;
 import com.ibm.jbatch.container.services.IJobExecution;
+import com.ibm.jbatch.container.services.IJobStatus;
 import com.ibm.jbatch.container.services.IJobStatusManagerService;
 import com.ibm.jbatch.container.services.IPersistenceManagerService;
 import com.ibm.jbatch.container.servicesmanager.ServicesManager;
 import com.ibm.jbatch.container.servicesmanager.ServicesManagerImpl;
-import com.ibm.jbatch.container.status.JobStatus;
 import com.ibm.jbatch.jsl.model.JSLJob;
 import com.ibm.jbatch.jsl.model.JSLProperties;
 
@@ -94,9 +94,9 @@ public class JobExecutionHelper {
 		return _persistenceManagementService.createSubJobInstance(name, apptag);
 	}
 
-	private static JobStatus createNewJobStatus(JobInstance jobInstance) {
+	private static IJobStatus createNewJobStatus(JobInstance jobInstance) {
 		long instanceId = jobInstance.getInstanceId();
-		JobStatus jobStatus = _jobStatusManagerService.createJobStatus(instanceId);
+		IJobStatus jobStatus = _jobStatusManagerService.createJobStatus(instanceId);
 		jobStatus.setJobInstance(jobInstance);
 		return jobStatus;
 	}
@@ -124,7 +124,7 @@ public class JobExecutionHelper {
 
 		executionHelper.prepareForExecution(jobContext);
 
-		JobStatus jobStatus = createNewJobStatus(jobInstance);
+		IJobStatus jobStatus = createNewJobStatus(jobInstance);
 		_jobStatusManagerService.updateJobStatus(jobStatus);
 
 		logger.exiting(CLASSNAME, "startJob", executionHelper);
@@ -145,7 +145,7 @@ public class JobExecutionHelper {
 
 		executionHelper.prepareForExecution(jobContext);
 
-		JobStatus jobStatus = createNewJobStatus(jobInstance);
+		IJobStatus jobStatus = createNewJobStatus(jobInstance);
 		_jobStatusManagerService.updateJobStatus(jobStatus);
 
 		logger.exiting(CLASSNAME, "startFlowInSplit", executionHelper);
@@ -165,7 +165,7 @@ public class JobExecutionHelper {
 
 		executionHelper.prepareForExecution(jobContext);
 
-		JobStatus jobStatus = createNewJobStatus(jobInstance);
+		IJobStatus jobStatus = createNewJobStatus(jobInstance);
 		_jobStatusManagerService.updateJobStatus(jobStatus);
 
 		logger.exiting(CLASSNAME, "startPartition", executionHelper);
@@ -176,7 +176,7 @@ public class JobExecutionHelper {
 		return restartExecution(executionId, null, null, false, false);
 	}
 
-	private static void validateJobInstanceNotCompleteOrAbandonded(JobStatus jobStatus) throws JobRestartException, JobExecutionAlreadyCompleteException {
+	private static void validateJobInstanceNotCompleteOrAbandonded(IJobStatus jobStatus) throws JobRestartException, JobExecutionAlreadyCompleteException {
 		if (jobStatus.getBatchStatus() == null) {
 			String msg = "On restart, we didn't find an earlier batch status.";
 			logger.warning(msg);
@@ -215,14 +215,14 @@ public class JobExecutionHelper {
 		
 		long jobInstanceId = _persistenceManagementService.getJobInstanceIdByExecutionId(execId);
 		
-		JobStatus jobStatus = _jobStatusManagerService.getJobStatus(jobInstanceId);
+		IJobStatus jobStatus = _jobStatusManagerService.getJobStatus(jobInstanceId);
 		
 		validateJobExecutionIsMostRecent(jobInstanceId, execId);
 		
 		// In particular, don't ensure that job hasn't been completed, since we always restart 
 		// split-flows.
 		
-		JobInstanceImpl jobInstance = jobStatus.getJobInstance();
+		JobInstance jobInstance = jobStatus.getJobInstance();
 
 		ModelNavigator<JSLJob> jobNavigator = getResolvedJobNavigator(gennedJobModel, null, false);
 		
@@ -248,7 +248,7 @@ public class JobExecutionHelper {
 
 		long jobInstanceId = _persistenceManagementService.getJobInstanceIdByExecutionId(executionId);
 
-		JobStatus jobStatus = _jobStatusManagerService.getJobStatus(jobInstanceId);
+		IJobStatus jobStatus = _jobStatusManagerService.getJobStatus(jobInstanceId);
 
 		if (logger.isLoggable(Level.FINE)) {
 			logger.fine("On restartJob with jobInstance Id = " + jobInstanceId + " , found JobStatus: " + jobStatus + 
@@ -259,13 +259,13 @@ public class JobExecutionHelper {
 
 		validateJobInstanceNotCompleteOrAbandonded(jobStatus);
 
-		JobInstanceImpl jobInstance = jobStatus.getJobInstance();
+		JobInstance jobInstance = jobStatus.getJobInstance();
 
 		ModelNavigator<JSLJob> jobNavigator = null;
 
 		// If we are in a parallel job that is genned use the regenned JSL.
 		if (gennedJobModel == null) {
-			jobNavigator = getResolvedJobNavigator(jobInstance.getJobXML(), restartJobParameters, parallelExecution);
+			jobNavigator = getResolvedJobNavigator(jobStatus.getJobXML(), restartJobParameters, parallelExecution);
 		} else {
 			jobNavigator = getResolvedJobNavigator(gennedJobModel, restartJobParameters, parallelExecution);
 		}
@@ -292,8 +292,8 @@ public class JobExecutionHelper {
 
 	
 	public static JobInstance getJobInstance(long executionId){
-		JobStatus jobStatus = _jobStatusManagerService.getJobStatusFromExecutionId(executionId);
-		JobInstanceImpl jobInstance = jobStatus.getJobInstance();
+		IJobStatus jobStatus = _jobStatusManagerService.getJobStatusFromExecutionId(executionId);
+		JobInstance jobInstance = jobStatus.getJobInstance();
 		return jobInstance;
 	}
 }

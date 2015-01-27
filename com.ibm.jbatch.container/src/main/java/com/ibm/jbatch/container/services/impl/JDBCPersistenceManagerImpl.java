@@ -67,6 +67,7 @@ import com.ibm.jbatch.container.persistence.CheckpointData.Type;
 import com.ibm.jbatch.container.services.CheckpointDataKey;
 import com.ibm.jbatch.container.services.CheckpointDataPair;
 import com.ibm.jbatch.container.services.IJobExecution;
+import com.ibm.jbatch.container.services.IJobStatus;
 import com.ibm.jbatch.container.services.IPersistenceManagerService;
 import com.ibm.jbatch.container.services.IStepStatus;
 import com.ibm.jbatch.container.status.JobStatus;
@@ -2043,7 +2044,7 @@ public class JDBCPersistenceManagerImpl implements IPersistenceManagerService, J
 	 * @see com.ibm.jbatch.container.services.IPersistenceManagerService#createJobStatus(long)
 	 */
 	@Override
-	public JobStatus createJobStatus(long jobInstanceId) {
+	public IJobStatus createJobStatus(long jobInstanceId) {
 		logger.entering(CLASSNAME, "createJobStatus", jobInstanceId);
 		Connection conn = null;
 		PreparedStatement statement = null;
@@ -2070,12 +2071,11 @@ public class JDBCPersistenceManagerImpl implements IPersistenceManagerService, J
 	 * @see com.ibm.jbatch.container.services.IPersistenceManagerService#getJobStatus(long)
 	 */
 	@Override
-	public JobStatus getJobStatus(long instanceId) {
+	public IJobStatus getJobStatus(long instanceId) {
 		logger.entering(CLASSNAME, "getJobStatus", instanceId);
 		Connection conn = null;
 		PreparedStatement statement = null;
 		ResultSet rs = null;
-		RuntimeJobExecution jobExecution = null;
 		String query = "SELECT obj FROM jobstatus WHERE id = ?";
 		JobStatus jobStatus = null;
 
@@ -2104,7 +2104,7 @@ public class JDBCPersistenceManagerImpl implements IPersistenceManagerService, J
 	 * @see com.ibm.jbatch.container.services.IPersistenceManagerService#updateJobStatus(long, com.ibm.jbatch.container.status.JobStatus)
 	 */
 	@Override
-	public void updateJobStatus(long instanceId, JobStatus jobStatus) {
+	public void updateJobStatus(long instanceId, IJobStatus jobStatus) {
 		logger.entering(CLASSNAME, "updateJobStatus", new Object[] {instanceId, jobStatus});
 		if (logger.isLoggable(Level.FINE)) {
 			logger.fine("Updating Job Status to: " + jobStatus.getBatchStatus());
@@ -2114,7 +2114,9 @@ public class JDBCPersistenceManagerImpl implements IPersistenceManagerService, J
 		try {
 			conn = getConnection();
 			statement = conn.prepareStatement("UPDATE jobstatus SET obj = ? WHERE id = ?");
-			statement.setBytes(1, serializeObject(jobStatus));
+			// Convert to our own persistence-ready format
+			JobStatus jobStatusImpl = new JobStatus(jobStatus);
+			statement.setBytes(1, serializeObject(jobStatusImpl));
 			statement.setLong(2, instanceId);
 			statement.executeUpdate();
 		} catch (SQLException e) {

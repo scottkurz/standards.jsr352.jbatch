@@ -31,9 +31,6 @@ import com.ibm.jbatch.container.util.TCCLObjectInputStream;
 
 public final class StepStatus implements Serializable, IStepStatus {
 
-    /**
-	 * 
-	 */
     private static final long serialVersionUID = 1L;
 
     private long stepExecutionId;

@@ -23,12 +23,12 @@ import javax.batch.runtime.BatchStatus;
 
 import com.ibm.jbatch.container.exception.BatchContainerServiceException;
 import com.ibm.jbatch.container.exception.PersistenceException;
+import com.ibm.jbatch.container.services.IJobStatus;
 import com.ibm.jbatch.container.services.IJobStatusManagerService;
 import com.ibm.jbatch.container.services.IPersistenceManagerService;
 import com.ibm.jbatch.container.services.IStepStatus;
 import com.ibm.jbatch.container.servicesmanager.ServicesManager;
 import com.ibm.jbatch.container.servicesmanager.ServicesManagerImpl;
-import com.ibm.jbatch.container.status.JobStatus;
 import com.ibm.jbatch.container.status.StepStatus;
 import com.ibm.jbatch.spi.services.IBatchConfig;
 
@@ -44,27 +44,23 @@ public class JobStatusManagerImpl implements IJobStatusManagerService {
     }
 
     @Override
-    public JobStatus createJobStatus(long jobInstanceId) throws BatchContainerServiceException {
-       JobStatus jobStatus = null;
-        jobStatus = _persistenceManager.createJobStatus(jobInstanceId);
-        return jobStatus;
+    public IJobStatus createJobStatus(long jobInstanceId) throws BatchContainerServiceException {
+        return _persistenceManager.createJobStatus(jobInstanceId);
     }
 
     @Override
-    public JobStatus getJobStatus(long jobInstanceId) throws BatchContainerServiceException {
-        JobStatus jobStatus = null;
-        jobStatus = _persistenceManager.getJobStatus(jobInstanceId);
-        return jobStatus;
+    public IJobStatus getJobStatus(long jobInstanceId) throws BatchContainerServiceException {
+        return _persistenceManager.getJobStatus(jobInstanceId);
     }
     
     @Override
-    public void updateJobStatus(JobStatus jobStatus) {
+    public void updateJobStatus(IJobStatus jobStatus) {
         persistJobStatus(jobStatus.getJobInstanceId(), jobStatus);
     }
     
     @Override
-    public JobStatus getJobStatusFromExecutionId(long executionId) throws BatchContainerServiceException {
-    	JobStatus retVal = null;
+    public IJobStatus getJobStatusFromExecutionId(long executionId) throws BatchContainerServiceException {
+    	IJobStatus retVal = null;
     	logger.fine("For executionId: " + executionId);
     	try {
     		retVal = _persistenceManager.getJobStatusFromExecution(executionId);
@@ -78,7 +74,7 @@ public class JobStatusManagerImpl implements IJobStatusManagerService {
 
     @Override
     public void updateJobBatchStatus(long jobInstanceId, BatchStatus batchStatus) throws BatchContainerServiceException {
-        JobStatus js = getJobStatus(jobInstanceId);
+        IJobStatus js = getJobStatus(jobInstanceId);
         if (js == null) {
             throw new IllegalStateException("Couldn't find entry to update for id = " + jobInstanceId);
         }
@@ -91,7 +87,7 @@ public class JobStatusManagerImpl implements IJobStatusManagerService {
 
     @Override
     public void updateJobExecutionStatus(long jobInstanceId, BatchStatus batchStatus, String exitStatus) throws BatchContainerServiceException {
-        JobStatus js = getJobStatus(jobInstanceId);
+        IJobStatus js = getJobStatus(jobInstanceId);
         if (js == null) {
             throw new IllegalStateException("Couldn't find entry to update for id = " + jobInstanceId);
         }
@@ -102,7 +98,7 @@ public class JobStatusManagerImpl implements IJobStatusManagerService {
 
     @Override
     public void updateJobCurrentStep(long jobInstanceId, String currentStepName) throws BatchContainerServiceException {
-        JobStatus js = getJobStatus(jobInstanceId);
+        IJobStatus js = getJobStatus(jobInstanceId);
         if (js == null) {
             throw new IllegalStateException("Couldn't find entry to update for id = " + jobInstanceId);
         }
@@ -113,7 +109,7 @@ public class JobStatusManagerImpl implements IJobStatusManagerService {
 
     @Override
     public void updateJobStatusWithNewExecution(long jobInstanceId, long newExecutionId) throws BatchContainerServiceException {
-        JobStatus js = getJobStatus(jobInstanceId);
+        IJobStatus js = getJobStatus(jobInstanceId);
         if (js == null) {
             throw new IllegalStateException("Couldn't find entry to update for id = " + jobInstanceId);
         }
@@ -123,7 +119,7 @@ public class JobStatusManagerImpl implements IJobStatusManagerService {
         persistJobStatus(jobInstanceId, js);                
     }
 
-    private void persistJobStatus(long jobInstanceId, JobStatus newJobStatus) throws BatchContainerServiceException {       
+    private void persistJobStatus(long jobInstanceId, IJobStatus newJobStatus) throws BatchContainerServiceException {       
         _persistenceManager.updateJobStatus(jobInstanceId, newJobStatus);
     }
 
@@ -172,7 +168,7 @@ public class JobStatusManagerImpl implements IJobStatusManagerService {
      * Inefficient, since we've already updated the status to stopped.. would be better to have a single update.
      */
     public void updateJobStatusFromJSLStop(long jobInstanceId, String restartOn) throws BatchContainerServiceException {       
-        JobStatus js = getJobStatus(jobInstanceId);        
+        IJobStatus js = getJobStatus(jobInstanceId);        
         if (js == null) {
             throw new IllegalStateException("Couldn't find entry to update for id = " + jobInstanceId);
         }

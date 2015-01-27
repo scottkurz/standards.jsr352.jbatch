@@ -19,8 +19,6 @@ package com.ibm.jbatch.container.services;
 import javax.batch.runtime.BatchStatus;
 
 import com.ibm.jbatch.container.exception.BatchContainerServiceException;
-import com.ibm.jbatch.container.status.JobStatus;
-import com.ibm.jbatch.container.status.StepStatus;
 import com.ibm.jbatch.spi.services.IBatchServiceBase;
 
 public interface IJobStatusManagerService extends IBatchServiceBase {
@@ -29,9 +27,9 @@ public interface IJobStatusManagerService extends IBatchServiceBase {
 	 * This method creates an entry for a new job instance
 	 *
 	 */
-	public JobStatus createJobStatus(long jobInstanceId) throws BatchContainerServiceException;
+	public IJobStatus createJobStatus(long jobInstanceId) throws BatchContainerServiceException;
 
-	public void updateJobStatus(JobStatus jobStatus);
+	public void updateJobStatus(IJobStatus jobStatus);
 
 	/**
      * Returns the JobStatus for a given jobInstance id
@@ -39,9 +37,9 @@ public interface IJobStatusManagerService extends IBatchServiceBase {
      * @return
      * @throws BatchContainerServiceException
      */
-    public abstract JobStatus getJobStatus(long jobInstanceId) throws BatchContainerServiceException;
+    public abstract IJobStatus getJobStatus(long jobInstanceId) throws BatchContainerServiceException;
 
-    public abstract JobStatus getJobStatusFromExecutionId(long executionId) throws BatchContainerServiceException;
+    public abstract IJobStatus getJobStatusFromExecutionId(long executionId) throws BatchContainerServiceException;
 
     public void updateJobBatchStatus(long jobInstanceId, BatchStatus batchStatus) throws BatchContainerServiceException;
     public void updateJobExecutionStatus(long jobInstanceId, BatchStatus batchStatus, String exitStatus) throws BatchContainerServiceException;

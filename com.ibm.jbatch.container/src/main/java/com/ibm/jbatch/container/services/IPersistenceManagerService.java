@@ -16,7 +16,6 @@
 */
 package com.ibm.jbatch.container.services;
 
-import java.io.Serializable;
 import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
@@ -32,7 +31,6 @@ import com.ibm.jbatch.container.context.impl.StepContextImpl;
 import com.ibm.jbatch.container.jobinstance.RuntimeFlowInSplitExecution;
 import com.ibm.jbatch.container.jobinstance.RuntimeJobExecution;
 import com.ibm.jbatch.container.jobinstance.StepExecutionImpl;
-import com.ibm.jbatch.container.status.JobStatus;
 import com.ibm.jbatch.spi.services.IBatchServiceBase;
 
 public interface IPersistenceManagerService extends IBatchServiceBase {
@@ -83,7 +81,7 @@ public interface IPersistenceManagerService extends IBatchServiceBase {
 
 	public void purge(String apptag);
 
-	public JobStatus getJobStatusFromExecution(long executionId);
+	public IJobStatus getJobStatusFromExecution(long executionId);
 
 	public long getJobInstanceIdByExecutionId(long executionId) throws NoSuchJobExecutionException;
 
@@ -144,7 +142,7 @@ public interface IPersistenceManagerService extends IBatchServiceBase {
 	 * @param jobInstanceId the parent job instance id
 	 * @return the JobStatus
 	 */
-	public JobStatus createJobStatus(long jobInstanceId);
+	public IJobStatus createJobStatus(long jobInstanceId);
 
 	/**
 	 * Get a JobStatus
@@ -152,7 +150,7 @@ public interface IPersistenceManagerService extends IBatchServiceBase {
 	 * @param instanceId the parent job instance id
 	 * @return the JobStatus
 	 */
-	public JobStatus getJobStatus(long instanceId);
+	public IJobStatus getJobStatus(long instanceId);
 
 	/**
 	 * Update a JobStatus
@@ -160,7 +158,7 @@ public interface IPersistenceManagerService extends IBatchServiceBase {
 	 * @param instanceId the parent job instance id
 	 * @param jobStatus the job status to be updated
 	 */
-	public void updateJobStatus(long instanceId, JobStatus jobStatus);
+	public void updateJobStatus(long instanceId, IJobStatus jobStatus);
 
 	// STEP_STATUS
 	/**
