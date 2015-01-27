@@ -22,17 +22,21 @@ import java.util.Properties;
 import java.util.logging.Logger;
 
 import javax.batch.runtime.BatchStatus;
+import javax.batch.runtime.JobExecution;
 
 import com.ibm.jbatch.container.annotation.TCKExperimentProperty;
 import com.ibm.jbatch.container.context.impl.JobContextImpl;
-import com.ibm.jbatch.container.services.IJobExecution;
 import com.ibm.jbatch.container.services.IPersistenceManagerService;
 import com.ibm.jbatch.container.services.IPersistenceManagerService.TimestampType;
 import com.ibm.jbatch.container.servicesmanager.ServicesManager;
 import com.ibm.jbatch.container.servicesmanager.ServicesManagerImpl;
 import com.ibm.jbatch.spi.TaggedJobExecution;
 
-public class JobOperatorJobExecution implements IJobExecution, TaggedJobExecution {
+/**
+ * Maybe an awkward name, but the intent is to distinguish between this and the RuntimeJobExecution
+ * class.  This class implements the specifications {@link JobExecution}
+ */
+public class JobOperatorJobExecution implements JobExecution, TaggedJobExecution {
 
 	private final static String sourceClass = JobOperatorJobExecution.class.getName();
 	private final static Logger logger = Logger.getLogger(sourceClass);
@@ -234,7 +238,6 @@ public class JobOperatorJobExecution implements IJobExecution, TaggedJobExecutio
 		return _persistenceManagementService.getTagName(executionID);
 	}
 
-	@Override
 	public long getInstanceId() {
 		return instanceID;
 	}

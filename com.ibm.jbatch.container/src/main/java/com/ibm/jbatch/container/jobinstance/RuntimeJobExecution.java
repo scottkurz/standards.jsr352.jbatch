@@ -26,7 +26,6 @@ import javax.batch.runtime.JobInstance;
 import com.ibm.jbatch.container.artifact.proxy.ListenerFactory;
 import com.ibm.jbatch.container.context.impl.JobContextImpl;
 import com.ibm.jbatch.container.navigator.ModelNavigator;
-import com.ibm.jbatch.container.services.IJobExecution;
 import com.ibm.jbatch.jsl.model.JSLJob;
 
 public class RuntimeJobExecution {
@@ -37,7 +36,7 @@ public class RuntimeJobExecution {
 	private String restartOn; 
 	private JobContextImpl jobContext = null;
 	private ListenerFactory listenerFactory;
-	private IJobExecution operatorJobExecution = null;
+	private JobOperatorJobExecution operatorJobExecution = null;
 	private Integer partitionInstance = null;
 
 	public RuntimeJobExecution(JobInstance jobInstance, long executionId) {
@@ -52,7 +51,10 @@ public class RuntimeJobExecution {
 	 * put on a second interface).
 	 */
 	
-	public void prepareForExecution(JobContextImpl jobContext, String restartOn) {
+	public void prepareForExecution(JobContextImpl jobContext, Timestamp createTime, String restartOn) {
+		setBatchStatus(jobContext.getBatchStatus().toString());
+		setCreateTime(createTime);
+		setLastUpdateTime(createTime);
 		this.jobContext = jobContext;
 		this.jobNavigator = jobContext.getNavigator();
 		jobContext.setExecutionId(executionId);
@@ -61,8 +63,8 @@ public class RuntimeJobExecution {
 		operatorJobExecution.setJobContext(jobContext);
 	}
 	
-	public void prepareForExecution(JobContextImpl jobContext) {
-		prepareForExecution(jobContext, null);
+	public void prepareForExecution(JobContextImpl jobContext, Timestamp createTime) {
+		prepareForExecution(jobContext, createTime, null);
 	}
 	
 	public void setRestartOn(String restartOn) {
@@ -100,7 +102,7 @@ public class RuntimeJobExecution {
 		this.listenerFactory = listenerFactory;
 	}
 
-	public IJobExecution getJobOperatorJobExecution() {
+	public JobOperatorJobExecution getJobOperatorJobExecution() {
 		return operatorJobExecution;
 	}
 
@@ -116,8 +118,8 @@ public class RuntimeJobExecution {
 		operatorJobExecution.setBatchStatus(status);
 	}
 
-	public void setCreateTime(Timestamp ts) {
-		operatorJobExecution.setCreateTime(ts);
+	public void setCreateTime(Timestamp now) {
+		operatorJobExecution.setCreateTime(now);
 	}
 
 	public void setEndTime(Timestamp ts) {

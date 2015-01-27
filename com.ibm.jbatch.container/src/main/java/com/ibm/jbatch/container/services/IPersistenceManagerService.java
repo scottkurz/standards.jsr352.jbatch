@@ -17,6 +17,7 @@
 package com.ibm.jbatch.container.services;
 
 import java.sql.Timestamp;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -24,6 +25,7 @@ import java.util.Set;
 
 import javax.batch.operations.NoSuchJobExecutionException;
 import javax.batch.runtime.BatchStatus;
+import javax.batch.runtime.JobExecution;
 import javax.batch.runtime.JobInstance;
 import javax.batch.runtime.StepExecution;
 
@@ -40,7 +42,6 @@ public interface IPersistenceManagerService extends IBatchServiceBase {
     /**
      * JOB OPERATOR ONLY METHODS
      */
-
 	public int jobOperatorGetJobInstanceCount(String jobName);
 
 	public int jobOperatorGetJobInstanceCount(String jobName, String appTag);
@@ -69,11 +70,11 @@ public interface IPersistenceManagerService extends IBatchServiceBase {
 
 	public void updateWithFinalExecutionStatusesAndTimestamps(long key, BatchStatus batchStatus, String exitStatus, Timestamp updatets);
 
-	public IJobExecution jobOperatorGetJobExecution(long jobExecutionId);
+	public JobExecution jobOperatorGetJobExecution(long jobExecutionId);
 
 	public Properties getParameters(long executionId) throws NoSuchJobExecutionException;
 
-	public List<IJobExecution> jobOperatorGetJobExecutions(long jobInstanceId);
+	public List<JobExecution> jobOperatorGetJobExecutions(long jobInstanceId);
 
 	public Set<Long> jobOperatorGetRunningExecutions(String jobName);
 
@@ -103,9 +104,10 @@ public interface IPersistenceManagerService extends IBatchServiceBase {
 	 * @param jobInstance the parent job instance
 	 * @param jobParameters the parent job instance parameters
 	 * @param batchStatus the current BatchStatus
-	 * @return the RuntimeJobExecution class for this JobExecution
+	 * @param createTime creation time
+	 * @return the executionId for this JobExecution
 	 */
-	RuntimeJobExecution createJobExecution(JobInstance jobInstance, Properties jobParameters, BatchStatus batchStatus);
+	long createJobExecution(JobInstance jobInstance, Properties jobParameters, BatchStatus batchStatus, Timestamp createTime);
 
 	// STEPEXECUTIONINSTANCEDATA
 	/**
@@ -228,8 +230,6 @@ public interface IPersistenceManagerService extends IBatchServiceBase {
 	long getMostRecentExecutionId(long jobInstanceId);
 
 	JobInstance createSubJobInstance(String name, String apptag);
-
-	public RuntimeFlowInSplitExecution createFlowInSplitExecution(JobInstance jobInstance, BatchStatus batchStatus);
 
 	public StepExecution getStepExecutionByStepExecutionId(long stepExecId);
 

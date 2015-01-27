@@ -45,8 +45,8 @@ import javax.batch.runtime.JobExecution;
 import javax.batch.runtime.JobInstance;
 import javax.batch.runtime.StepExecution;
 
+import com.ibm.jbatch.container.jobinstance.RuntimeJobExecution;
 import com.ibm.jbatch.container.services.IBatchKernelService;
-import com.ibm.jbatch.container.services.IJobExecution;
 import com.ibm.jbatch.container.services.IJobStatus;
 import com.ibm.jbatch.container.services.IJobStatusManagerService;
 import com.ibm.jbatch.container.services.IPersistenceManagerService;
@@ -118,7 +118,7 @@ public class JobOperatorImpl implements JobOperator {
 			logger.fine("Starting job: " + jobXML.substring(0, concatLen) + "... truncated ...");
 		}
 
-		IJobExecution execution = batchKernel.startJob(jobXML, jobParameters);
+		RuntimeJobExecution execution = batchKernel.startJob(jobXML, jobParameters);
 		executionId = execution.getExecutionId();
 
 		if (logger.isLoggable(Level.FINE)) {
@@ -132,8 +132,9 @@ public class JobOperatorImpl implements JobOperator {
 	public void abandon(long executionId)
 			throws NoSuchJobExecutionException, JobExecutionIsRunningException, JobSecurityException {
 
-		if (isAuthorized(persistenceService.getJobInstanceIdByExecutionId(executionId))) {
-			IJobExecution jobEx = persistenceService.jobOperatorGetJobExecution(executionId);
+		long instanceId = persistenceService.getJobInstanceIdByExecutionId(executionId);
+		if (isAuthorized(instanceId)) {
+			JobExecution jobEx = persistenceService.jobOperatorGetJobExecution(executionId);
 
 			// if it is not in STARTED or STARTING state, mark it as ABANDONED
 			if (!(jobEx.getBatchStatus().equals(BatchStatus.STARTED) || jobEx.getBatchStatus().equals(BatchStatus.STARTING))){
@@ -144,7 +145,7 @@ public class JobOperatorImpl implements JobOperator {
 				logger.fine("Job Execution: " + executionId + " was abandoned");
 
 				// Don't forget to update JOBSTATUS table
-				_jobStatusManagerService.updateJobBatchStatus(jobEx.getInstanceId(), BatchStatus.ABANDONED);
+				_jobStatusManagerService.updateJobBatchStatus(instanceId, BatchStatus.ABANDONED);
 			}
 			else {
 				logger.warning("Job Execution: " + executionId + " is still running");
@@ -157,7 +158,7 @@ public class JobOperatorImpl implements JobOperator {
 	}
 
 	@Override
-	public IJobExecution getJobExecution(long executionId)
+	public JobExecution getJobExecution(long executionId)
 			throws NoSuchJobExecutionException, JobSecurityException {
 		if (isAuthorized(persistenceService.getJobInstanceIdByExecutionId(executionId))) {
 			return batchKernel.getJobExecution(executionId);
@@ -173,12 +174,12 @@ public class JobOperatorImpl implements JobOperator {
 
 		if (isAuthorized(instance.getInstanceId())) {
 			// Mediate between one 
-			List<IJobExecution> executionImpls = persistenceService.jobOperatorGetJobExecutions(instance.getInstanceId());
+			List<JobExecution> executionImpls = persistenceService.jobOperatorGetJobExecutions(instance.getInstanceId());
 			if (executionImpls.size() == 0 ){
 				logger.warning("The current user is not authorized to perform this operation");
 				throw new NoSuchJobInstanceException( "Job: " + instance.getJobName() + " does not exist");
 			}
-			for (IJobExecution e : executionImpls) {
+			for (JobExecution e : executionImpls) {
 				executions.add(e);
 			}
 		} else {
@@ -323,7 +324,7 @@ public class JobOperatorImpl implements JobOperator {
 					logger.finer("Examining executionId: " + id);
 					if(isAuthorized(persistenceService.getJobInstanceIdByExecutionId(id))) {
 						if (batchKernel.isExecutionRunning(id)) {
-							IJobExecution jobEx = batchKernel.getJobExecution(id);
+							JobExecution jobEx = batchKernel.getJobExecution(id);
 							jobExecutions.add(jobEx.getExecutionId());
 						} else {
 							logger.finer("Found executionId: " + id + " with a BatchStatus indicating running, but kernel doesn't currently have an entry for this execution in the kernel's in-memory map.");
@@ -355,7 +356,7 @@ public class JobOperatorImpl implements JobOperator {
 
 		List<StepExecution> stepExecutions = new ArrayList<StepExecution>();
 
-		IJobExecution jobEx = batchKernel.getJobExecution(executionId);
+		JobExecution jobEx = batchKernel.getJobExecution(executionId);
 		if (jobEx == null){
 			logger.fine("Job Execution: " + executionId + " not found");
 			throw new NoSuchJobExecutionException("Job Execution: " + executionId + " not found");
@@ -417,7 +418,7 @@ public class JobOperatorImpl implements JobOperator {
 				logger.fine("JobOperator restart, with old executionId = " + oldExecutionId + "\n" + jobParameterWriter.toString());
 			}
 
-			IJobExecution execution = batchKernel.restartJob(oldExecutionId, restartParameters);
+			RuntimeJobExecution execution = batchKernel.restartJob(oldExecutionId, restartParameters);
 
 			newExecutionId = execution.getExecutionId();
 

@@ -16,6 +16,8 @@
  */
 package com.ibm.jbatch.container.jobinstance;
 
+import java.sql.Timestamp;
+import java.util.Date;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -26,6 +28,7 @@ import javax.batch.operations.JobRestartException;
 import javax.batch.operations.JobStartException;
 import javax.batch.operations.NoSuchJobExecutionException;
 import javax.batch.runtime.BatchStatus;
+import javax.batch.runtime.JobExecution;
 import javax.batch.runtime.JobInstance;
 
 import com.ibm.jbatch.container.context.impl.JobContextImpl;
@@ -35,7 +38,6 @@ import com.ibm.jbatch.container.modelresolver.PropertyResolverFactory;
 import com.ibm.jbatch.container.navigator.ModelNavigator;
 import com.ibm.jbatch.container.navigator.NavigatorFactory;
 import com.ibm.jbatch.container.services.IBatchKernelService;
-import com.ibm.jbatch.container.services.IJobExecution;
 import com.ibm.jbatch.container.services.IJobStatus;
 import com.ibm.jbatch.container.services.IJobStatusManagerService;
 import com.ibm.jbatch.container.services.IPersistenceManagerService;
@@ -108,6 +110,10 @@ public class JobExecutionHelper {
 		}
 	}
 
+	private RuntimeJobExecution prepareForExecution(RuntimeJobExecution executionHelper, Timestamp now) {
+		return executionHelper;
+	}
+
 	public static RuntimeJobExecution startJob(String jobXML, Properties jobParameters) throws JobStartException {
 		logger.entering(CLASSNAME, "startJob", new Object[]{jobXML, jobParameters==null ? "<null>" : jobParameters});
 
@@ -119,10 +125,11 @@ public class JobExecutionHelper {
 
 		JobInstance jobInstance = getNewJobInstance(jobNavigator.getRootModelElement().getId(), jobXML);
 
-		RuntimeJobExecution executionHelper = 
-				_persistenceManagementService.createJobExecution(jobInstance, jobParameters, jobContext.getBatchStatus());
-
-		executionHelper.prepareForExecution(jobContext);
+		Timestamp now = new Timestamp(System.currentTimeMillis());
+		long newExecutionId = 
+				_persistenceManagementService.createJobExecution(jobInstance, jobParameters, jobContext.getBatchStatus(), now);
+		RuntimeJobExecution executionHelper = new RuntimeJobExecution(jobInstance, newExecutionId);
+		executionHelper.prepareForExecution(jobContext, now);
 
 		IJobStatus jobStatus = createNewJobStatus(jobInstance);
 		_jobStatusManagerService.updateJobStatus(jobStatus);
@@ -140,10 +147,14 @@ public class JobExecutionHelper {
 		
 		JobInstance jobInstance = getNewSubJobInstance(jobNavigator.getRootModelElement().getId());
 
-		RuntimeFlowInSplitExecution executionHelper = 
-				_persistenceManagementService.createFlowInSplitExecution(jobInstance, jobContext.getBatchStatus());
-
-		executionHelper.prepareForExecution(jobContext);
+		// Key aspect to split-flow
+		Properties jobParameters = null;
+		
+		Timestamp now = new Timestamp(System.currentTimeMillis());
+		long newExecutionId = 
+				_persistenceManagementService.createJobExecution(jobInstance, jobParameters, jobContext.getBatchStatus(), now);
+		RuntimeFlowInSplitExecution executionHelper = new RuntimeFlowInSplitExecution(jobInstance, newExecutionId);
+		executionHelper.prepareForExecution(jobContext, now);
 
 		IJobStatus jobStatus = createNewJobStatus(jobInstance);
 		_jobStatusManagerService.updateJobStatus(jobStatus);
@@ -160,20 +171,17 @@ public class JobExecutionHelper {
 		
 		JobInstance jobInstance = getNewSubJobInstance(jobNavigator.getRootModelElement().getId());
 
-		RuntimeJobExecution executionHelper = 
-				_persistenceManagementService.createJobExecution(jobInstance, jobParameters, jobContext.getBatchStatus());
-
-		executionHelper.prepareForExecution(jobContext);
+		Timestamp now = new Timestamp(System.currentTimeMillis());
+		long newExecutionId = 
+				_persistenceManagementService.createJobExecution(jobInstance, jobParameters, jobContext.getBatchStatus(), now);
+		RuntimeJobExecution executionHelper = new RuntimeJobExecution(jobInstance, newExecutionId);
+		executionHelper.prepareForExecution(jobContext, now);
 
 		IJobStatus jobStatus = createNewJobStatus(jobInstance);
 		_jobStatusManagerService.updateJobStatus(jobStatus);
 
 		logger.exiting(CLASSNAME, "startPartition", executionHelper);
 		return executionHelper;
-	}
-	
-	public static RuntimeJobExecution restartJob(long executionId, JSLJob gennedJobModel) throws JobRestartException, JobExecutionAlreadyCompleteException, JobExecutionNotMostRecentException, NoSuchJobExecutionException {
-		return restartExecution(executionId, null, null, false, false);
 	}
 
 	private static void validateJobInstanceNotCompleteOrAbandonded(IJobStatus jobStatus) throws JobRestartException, JobExecutionAlreadyCompleteException {
@@ -228,9 +236,15 @@ public class JobExecutionHelper {
 		
 		JobContextImpl jobContext = getJobContext(jobNavigator);
 		
-		RuntimeFlowInSplitExecution executionHelper = _persistenceManagementService.createFlowInSplitExecution(jobInstance, jobContext.getBatchStatus());
+		// Null for split-flow
+		Properties jobParameters = null;
 
-		executionHelper.prepareForExecution(jobContext, jobStatus.getRestartOn());
+		Timestamp now = new Timestamp(System.currentTimeMillis());
+		long newExecutionId = 
+				_persistenceManagementService.createJobExecution(jobInstance, jobParameters, jobContext.getBatchStatus(), now);
+		RuntimeFlowInSplitExecution executionHelper = new RuntimeFlowInSplitExecution(jobInstance, newExecutionId);
+
+		executionHelper.prepareForExecution(jobContext, now, jobStatus.getRestartOn());
 
 		_jobStatusManagerService.updateJobStatusWithNewExecution(jobInstance.getInstanceId(), executionHelper.getExecutionId());        
 
@@ -274,19 +288,18 @@ public class JobExecutionHelper {
 
 		JobContextImpl jobContext = getJobContext(jobNavigator);
 		
-		RuntimeJobExecution executionHelper;
-		if (flowInSplit) {
-			executionHelper = _persistenceManagementService.createFlowInSplitExecution(jobInstance, jobContext.getBatchStatus());
-		} else {
-			executionHelper = _persistenceManagementService.createJobExecution(jobInstance, restartJobParameters, jobContext.getBatchStatus());
-		}
-		executionHelper.prepareForExecution(jobContext, jobStatus.getRestartOn());
+		Timestamp now = new Timestamp(System.currentTimeMillis());
+		long newExecutionId = 
+				_persistenceManagementService.createJobExecution(jobInstance, restartJobParameters, jobContext.getBatchStatus(), now);
+		RuntimeJobExecution executionHelper = new RuntimeJobExecution(jobInstance, newExecutionId);
+
+		executionHelper.prepareForExecution(jobContext, now, jobStatus.getRestartOn());
 		_jobStatusManagerService.updateJobStatusWithNewExecution(jobInstance.getInstanceId(), executionHelper.getExecutionId());        
 
 		return executionHelper;
 	}    
 
-	public static IJobExecution getPersistedJobOperatorJobExecution(long jobExecutionId) throws NoSuchJobExecutionException {
+	public static JobExecution getPersistedJobOperatorJobExecution(long jobExecutionId) throws NoSuchJobExecutionException {
 		return _persistenceManagementService.jobOperatorGetJobExecution(jobExecutionId);
 	}
 

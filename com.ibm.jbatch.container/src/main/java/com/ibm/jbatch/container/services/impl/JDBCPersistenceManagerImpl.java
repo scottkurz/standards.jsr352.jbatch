@@ -30,9 +30,9 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -44,6 +44,7 @@ import java.util.logging.Logger;
 
 import javax.batch.operations.NoSuchJobExecutionException;
 import javax.batch.runtime.BatchStatus;
+import javax.batch.runtime.JobExecution;
 import javax.batch.runtime.JobInstance;
 import javax.batch.runtime.Metric;
 import javax.batch.runtime.StepExecution;
@@ -66,7 +67,6 @@ import com.ibm.jbatch.container.persistence.CheckpointData;
 import com.ibm.jbatch.container.persistence.CheckpointData.Type;
 import com.ibm.jbatch.container.services.CheckpointDataKey;
 import com.ibm.jbatch.container.services.CheckpointDataPair;
-import com.ibm.jbatch.container.services.IJobExecution;
 import com.ibm.jbatch.container.services.IJobStatus;
 import com.ibm.jbatch.container.services.IPersistenceManagerService;
 import com.ibm.jbatch.container.services.IStepStatus;
@@ -1360,11 +1360,11 @@ public class JDBCPersistenceManagerImpl implements IPersistenceManagerService, J
 
 
 	@Override
-	public IJobExecution jobOperatorGetJobExecution(long jobExecutionId) {
+	public JobExecution jobOperatorGetJobExecution(long jobExecutionId) {
 		Connection conn = null;
 		PreparedStatement statement = null;
 		ResultSet rs = null;
-		IJobExecution jobEx = null;
+		JobExecution jobEx = null;
 		ObjectInputStream objectIn = null;
 
 		try {
@@ -1394,11 +1394,11 @@ public class JDBCPersistenceManagerImpl implements IPersistenceManagerService, J
 	}
 
 	@Override
-	public List<IJobExecution> jobOperatorGetJobExecutions(long jobInstanceId) {
+	public List<JobExecution> jobOperatorGetJobExecutions(long jobInstanceId) {
 		Connection conn = null;
 		PreparedStatement statement = null;
 		ResultSet rs = null;
-		List<IJobExecution> data = new ArrayList<IJobExecution>();
+		List<JobExecution> data = new ArrayList<JobExecution>();
 		ObjectInputStream objectIn = null;
 
 		try {
@@ -1428,7 +1428,7 @@ public class JDBCPersistenceManagerImpl implements IPersistenceManagerService, J
 		return data;
 	}
 
-	private IJobExecution readJobExecutionRecord(ResultSet rs) throws SQLException, IOException, ClassNotFoundException {
+	private JobExecution readJobExecutionRecord(ResultSet rs) throws SQLException, IOException, ClassNotFoundException {
 		if (rs == null) {
 			return null;
 		}
@@ -1701,21 +1701,8 @@ public class JDBCPersistenceManagerImpl implements IPersistenceManagerService, J
 		return jobInstance;
 	}
 
-	/* (non-Javadoc)
-	 * @see com.ibm.jbatch.container.services.IPersistenceManagerService#createJobExecution(com.ibm.jbatch.container.jsl.JobNavigator, javax.batch.runtime.JobInstance, java.util.Properties, com.ibm.jbatch.container.context.impl.JobContextImpl)
-	 */
 	@Override
-	public RuntimeJobExecution createJobExecution(JobInstance jobInstance, Properties jobParameters, BatchStatus batchStatus) {
-		Timestamp now = new Timestamp(System.currentTimeMillis());
-		long newExecutionId = createRuntimeJobExecutionEntry(jobInstance, jobParameters, batchStatus, now);
-		RuntimeJobExecution jobExecution = new RuntimeJobExecution(jobInstance, newExecutionId);
-		jobExecution.setBatchStatus(batchStatus.name());
-		jobExecution.setCreateTime(now);
-		jobExecution.setLastUpdateTime(now);
-		return jobExecution;
-	}
-
-	private long createRuntimeJobExecutionEntry(JobInstance jobInstance, Properties jobParameters, BatchStatus batchStatus, Timestamp timestamp) {
+	public long createJobExecution(JobInstance jobInstance, Properties jobParameters, BatchStatus batchStatus, Timestamp createTime) {
 		Connection conn = null;
 		PreparedStatement statement = null;
 		ResultSet rs = null;
@@ -1724,8 +1711,8 @@ public class JDBCPersistenceManagerImpl implements IPersistenceManagerService, J
 			conn = getConnection();
 			statement = conn.prepareStatement("INSERT INTO executioninstancedata (jobinstanceid, createtime, updatetime, batchstatus, parameters) VALUES(?, ?, ?, ?, ?)", new String[] { "JOBEXECID" });
 			statement.setLong(1, jobInstance.getInstanceId());
-			statement.setTimestamp(2, timestamp);
-			statement.setTimestamp(3, timestamp);
+			statement.setTimestamp(2, createTime);
+			statement.setTimestamp(3, createTime);
 			statement.setString(4, batchStatus.name());
 			statement.setObject(5, serializeObject(jobParameters));
 			statement.executeUpdate();
@@ -1743,6 +1730,7 @@ public class JDBCPersistenceManagerImpl implements IPersistenceManagerService, J
 		return newJobExecutionId;
 	}
 
+	/*
 	@Override
 	public RuntimeFlowInSplitExecution createFlowInSplitExecution(JobInstance jobInstance, BatchStatus batchStatus) {
 		Timestamp now = new Timestamp(System.currentTimeMillis());
@@ -1753,6 +1741,7 @@ public class JDBCPersistenceManagerImpl implements IPersistenceManagerService, J
 		flowExecution.setLastUpdateTime(now);
 		return flowExecution;
 	}
+	*/
 
 	/* (non-Javadoc)
 	 * @see com.ibm.jbatch.container.services.IPersistenceManagerService#createStepExecution(long, com.ibm.jbatch.container.context.impl.StepContextImpl)

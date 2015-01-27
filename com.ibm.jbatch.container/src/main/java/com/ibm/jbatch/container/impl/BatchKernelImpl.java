@@ -33,6 +33,7 @@ import javax.batch.operations.JobExecutionNotRunningException;
 import javax.batch.operations.JobRestartException;
 import javax.batch.operations.JobStartException;
 import javax.batch.operations.NoSuchJobExecutionException;
+import javax.batch.runtime.JobExecution;
 import javax.batch.runtime.JobInstance;
 
 import com.ibm.jbatch.container.IThreadRootController;
@@ -42,7 +43,6 @@ import com.ibm.jbatch.container.jobinstance.JobExecutionHelper;
 import com.ibm.jbatch.container.jobinstance.RuntimeFlowInSplitExecution;
 import com.ibm.jbatch.container.jobinstance.RuntimeJobExecution;
 import com.ibm.jbatch.container.services.IBatchKernelService;
-import com.ibm.jbatch.container.services.IJobExecution;
 import com.ibm.jbatch.container.services.IPersistenceManagerService;
 import com.ibm.jbatch.container.services.impl.NoOpBatchSecurityHelper;
 import com.ibm.jbatch.container.services.impl.RuntimeBatchJobUtil;
@@ -109,12 +109,12 @@ public class BatchKernelImpl implements IBatchKernelService {
 	}
 
 	@Override
-	public IJobExecution startJob(String jobXML) throws JobStartException {
+	public RuntimeJobExecution startJob(String jobXML) throws JobStartException {
 		return startJob(jobXML, null);
 	}
 
 	@Override
-	public IJobExecution startJob(String jobXML, Properties jobParameters) throws JobStartException {
+	public RuntimeJobExecution startJob(String jobXML, Properties jobParameters) throws JobStartException {
 		String method = "startJob";
 
 		if (logger.isLoggable(Level.FINER)) {
@@ -138,7 +138,7 @@ public class BatchKernelImpl implements IBatchKernelService {
 			logger.exiting(sourceClass, method, jobExecution);
 		}
 
-		return jobExecution.getJobOperatorJobExecution();
+		return jobExecution;
 	}
 
 	@Override
@@ -154,7 +154,7 @@ public class BatchKernelImpl implements IBatchKernelService {
 	}
 
 	@Override
-	public IJobExecution restartJob(long executionId) throws JobRestartException, JobExecutionAlreadyCompleteException, JobExecutionNotMostRecentException, NoSuchJobExecutionException {
+	public RuntimeJobExecution restartJob(long executionId) throws JobRestartException, JobExecutionAlreadyCompleteException, JobExecutionNotMostRecentException, NoSuchJobExecutionException {
 		String method = "restartJob";
 
 		if (logger.isLoggable(Level.FINER)) {
@@ -169,7 +169,7 @@ public class BatchKernelImpl implements IBatchKernelService {
 
 
 	@Override
-	public IJobExecution restartJob(long executionId, Properties jobOverrideProps) throws JobRestartException, JobExecutionAlreadyCompleteException, JobExecutionNotMostRecentException, NoSuchJobExecutionException {
+	public RuntimeJobExecution restartJob(long executionId, Properties jobOverrideProps) throws JobRestartException, JobExecutionAlreadyCompleteException, JobExecutionNotMostRecentException, NoSuchJobExecutionException {
 		String method = "restartJob";
 
 		if (logger.isLoggable(Level.FINER)) {
@@ -193,7 +193,7 @@ public class BatchKernelImpl implements IBatchKernelService {
 			logger.exiting(sourceClass, method, jobExecution);
 		}
 
-		return jobExecution.getJobOperatorJobExecution();
+		return jobExecution;
 	}
 
 	@Override
@@ -219,12 +219,12 @@ public class BatchKernelImpl implements IBatchKernelService {
 
 	}
 
-	public IJobExecution getJobExecution(long executionId) throws NoSuchJobExecutionException {
+	public JobExecution getJobExecution(long executionId) throws NoSuchJobExecutionException {
 		/*
 		 *  Keep logging on finest for apps like TCK which do polling
 		 */
 		logger.finest("Entering " + sourceClass + ".getJobExecution(), executionId = " + executionId);
-		IJobExecution retVal = JobExecutionHelper.getPersistedJobOperatorJobExecution(executionId);
+		JobExecution retVal = JobExecutionHelper.getPersistedJobOperatorJobExecution(executionId);
 
 		logger.finest("Exiting " + sourceClass + ".getJobExecution(), retVal = " + retVal);
 		return retVal;
@@ -389,11 +389,11 @@ public class BatchKernelImpl implements IBatchKernelService {
 			throw new IllegalStateException(errorMsg);
 		}
 
-		List<IJobExecution> subJobExecs = persistenceService.jobOperatorGetJobExecutions(instanceIds.get(0));
+		List<JobExecution> subJobExecs = persistenceService.jobOperatorGetJobExecutions(instanceIds.get(0));
 
 		Long execId = Long.MIN_VALUE;
 
-		for (IJobExecution subJobExec : subJobExecs ) {
+		for (JobExecution subJobExec : subJobExecs ) {
 			if (subJobExec.getExecutionId() > execId ) {
 				execId = subJobExec.getExecutionId();
 			}

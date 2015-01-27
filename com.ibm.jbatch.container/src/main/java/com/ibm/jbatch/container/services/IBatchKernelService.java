@@ -25,6 +25,7 @@ import javax.batch.operations.JobExecutionNotRunningException;
 import javax.batch.operations.JobRestartException;
 import javax.batch.operations.JobStartException;
 import javax.batch.operations.NoSuchJobExecutionException;
+import javax.batch.runtime.JobExecution;
 import javax.batch.runtime.JobInstance;
 
 import com.ibm.jbatch.container.jobinstance.RuntimeJobExecution;
@@ -38,15 +39,15 @@ import com.ibm.jbatch.spi.services.IBatchServiceBase;
 
 public interface IBatchKernelService extends IBatchServiceBase {
 
-	IJobExecution getJobExecution(long executionId) throws NoSuchJobExecutionException;
+	JobExecution getJobExecution(long executionId) throws NoSuchJobExecutionException;
 
-	IJobExecution restartJob(long executionID) throws JobRestartException, JobExecutionAlreadyCompleteException, JobExecutionNotMostRecentException, NoSuchJobExecutionException;
+	RuntimeJobExecution restartJob(long executionID) throws JobRestartException, JobExecutionAlreadyCompleteException, JobExecutionNotMostRecentException, NoSuchJobExecutionException;
 
-	IJobExecution restartJob(long executionID, Properties overrideJobParameters) throws JobRestartException, JobExecutionAlreadyCompleteException, JobExecutionNotMostRecentException, NoSuchJobExecutionException;
+	RuntimeJobExecution restartJob(long executionID, Properties overrideJobParameters) throws JobRestartException, JobExecutionAlreadyCompleteException, JobExecutionNotMostRecentException, NoSuchJobExecutionException;
 
-	IJobExecution startJob(String jobXML) throws JobStartException;
+	RuntimeJobExecution startJob(String jobXML) throws JobStartException;
 
-	IJobExecution startJob(String jobXML, Properties jobParameters) throws JobStartException;
+	RuntimeJobExecution startJob(String jobXML, Properties jobParameters) throws JobStartException;
 
 	void stopJob(long executionID) throws NoSuchJobExecutionException, JobExecutionNotRunningException;
 
