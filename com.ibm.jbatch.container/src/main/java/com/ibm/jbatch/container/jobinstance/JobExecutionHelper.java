@@ -16,7 +16,6 @@
  */
 package com.ibm.jbatch.container.jobinstance;
 
-import java.sql.Timestamp;
 import java.util.Date;
 import java.util.Properties;
 import java.util.logging.Level;
@@ -110,7 +109,7 @@ public class JobExecutionHelper {
 		}
 	}
 
-	private RuntimeJobExecution prepareForExecution(RuntimeJobExecution executionHelper, Timestamp now) {
+	private RuntimeJobExecution prepareForExecution(RuntimeJobExecution executionHelper, Date now) {
 		return executionHelper;
 	}
 
@@ -125,7 +124,7 @@ public class JobExecutionHelper {
 
 		JobInstance jobInstance = getNewJobInstance(jobNavigator.getRootModelElement().getId(), jobXML);
 
-		Timestamp now = new Timestamp(System.currentTimeMillis());
+		Date now = new Date(System.currentTimeMillis());
 		long newExecutionId = 
 				_persistenceManagementService.createJobExecution(jobInstance, jobParameters, jobContext.getBatchStatus(), now);
 		RuntimeJobExecution executionHelper = new RuntimeJobExecution(jobInstance, newExecutionId);
@@ -150,7 +149,7 @@ public class JobExecutionHelper {
 		// Key aspect to split-flow
 		Properties jobParameters = null;
 		
-		Timestamp now = new Timestamp(System.currentTimeMillis());
+		Date now = new Date(System.currentTimeMillis());
 		long newExecutionId = 
 				_persistenceManagementService.createJobExecution(jobInstance, jobParameters, jobContext.getBatchStatus(), now);
 		RuntimeFlowInSplitExecution executionHelper = new RuntimeFlowInSplitExecution(jobInstance, newExecutionId);
@@ -171,7 +170,7 @@ public class JobExecutionHelper {
 		
 		JobInstance jobInstance = getNewSubJobInstance(jobNavigator.getRootModelElement().getId());
 
-		Timestamp now = new Timestamp(System.currentTimeMillis());
+		Date now = new Date(System.currentTimeMillis());
 		long newExecutionId = 
 				_persistenceManagementService.createJobExecution(jobInstance, jobParameters, jobContext.getBatchStatus(), now);
 		RuntimeJobExecution executionHelper = new RuntimeJobExecution(jobInstance, newExecutionId);
@@ -239,7 +238,7 @@ public class JobExecutionHelper {
 		// Null for split-flow
 		Properties jobParameters = null;
 
-		Timestamp now = new Timestamp(System.currentTimeMillis());
+		Date now = new Date(System.currentTimeMillis());
 		long newExecutionId = 
 				_persistenceManagementService.createJobExecution(jobInstance, jobParameters, jobContext.getBatchStatus(), now);
 		RuntimeFlowInSplitExecution executionHelper = new RuntimeFlowInSplitExecution(jobInstance, newExecutionId);
@@ -288,7 +287,7 @@ public class JobExecutionHelper {
 
 		JobContextImpl jobContext = getJobContext(jobNavigator);
 		
-		Timestamp now = new Timestamp(System.currentTimeMillis());
+		Date now = new Date(System.currentTimeMillis());
 		long newExecutionId = 
 				_persistenceManagementService.createJobExecution(jobInstance, restartJobParameters, jobContext.getBatchStatus(), now);
 		RuntimeJobExecution executionHelper = new RuntimeJobExecution(jobInstance, newExecutionId);

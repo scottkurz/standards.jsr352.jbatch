@@ -17,7 +17,7 @@
 package com.ibm.jbatch.container.context.impl;
 
 import java.io.Serializable;
-import java.sql.Timestamp;
+import java.util.Date;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
@@ -43,8 +43,8 @@ public class StepContextImpl implements StepContext {
     private Object transientUserData = null;
     private Serializable persistentUserData = null;
     private Exception exception = null;
-    Timestamp starttime = null;
-    Timestamp endtime = null;
+    Date starttime = null;
+    Date endtime = null;
     
     private long stepExecID = 0;
     
@@ -177,21 +177,11 @@ public class StepContextImpl implements StepContext {
 		stepExecID = stepExecutionId;
 	}
 
-	public void setStartTime(Timestamp startTS) {
-		starttime = startTS;
-		
+	public void setEndTime(Date endTS) {
+		endtime = endTS;
 	}
 
-	public void setEndTime(Timestamp endTS) {
-		endtime = endTS;
-		
-	}
-	
-	public Timestamp getStartTimeTS(){
-		return starttime;
-	}
-	
-	public Timestamp getEndTimeTS(){
+	public Date getEndTimeTS(){
 		return endtime;
 	}
 	

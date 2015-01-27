@@ -18,7 +18,7 @@ package com.ibm.jbatch.container.impl;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.sql.Timestamp;
+import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
@@ -154,7 +154,7 @@ public abstract class JobThreadRootControllerImpl implements IThreadRootControll
 	protected void markJobStarted() {
 		updateJobBatchStatus(BatchStatus.STARTED);
 		long time = System.currentTimeMillis();
-		Timestamp timestamp = new Timestamp(time);
+		Date timestamp = new Date(time);
 		jobExecution.setLastUpdateTime(timestamp);
 		jobExecution.setStartTime(timestamp);
 		persistenceService.markJobStarted(jobExecution.getExecutionId(), timestamp);
@@ -206,7 +206,7 @@ public abstract class JobThreadRootControllerImpl implements IThreadRootControll
 
 		// Take a current timestamp for last updated no matter what the status.
 		long time = System.currentTimeMillis();
-		Timestamp timestamp = new Timestamp(time);
+		Date timestamp = new Date(time);
 		jobExecution.setLastUpdateTime(timestamp);
 
 		// Perhaps these should be coordinated in a tran but probably better still would be
@@ -263,7 +263,7 @@ public abstract class JobThreadRootControllerImpl implements IThreadRootControll
 	protected void batchStatusStopping() {
 		updateJobBatchStatus(BatchStatus.STOPPING);
 		long time = System.currentTimeMillis();
-		Timestamp timestamp = new Timestamp(time);
+		Date timestamp = new Date(time);
 		jobExecution.setLastUpdateTime(timestamp);
 		persistenceService.updateBatchStatusOnly(jobExecution.getExecutionId(), BatchStatus.STOPPING, timestamp);
 	}

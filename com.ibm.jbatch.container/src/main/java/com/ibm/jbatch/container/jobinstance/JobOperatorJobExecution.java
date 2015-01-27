@@ -16,7 +16,6 @@
  */
 package com.ibm.jbatch.container.jobinstance;
 
-import java.sql.Timestamp;
 import java.util.Date;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -47,10 +46,10 @@ public class JobOperatorJobExecution implements JobExecution, TaggedJobExecution
 	private long executionID = 0L;
 	private long instanceID = 0L;
 
-	Timestamp createTime;
-	Timestamp startTime;
-	Timestamp endTime;
-	Timestamp updateTime;
+	Date createTime;
+	Date startTime;
+	Date endTime;
+	Date updateTime;
 	Properties parameters;
 	String batchStatus;
 	BatchStatus cachedBatchStatus;
@@ -191,11 +190,11 @@ public class JobOperatorJobExecution implements JobExecution, TaggedJobExecution
 		batchStatus = status;
 	}
 
-	public void setCreateTime(Timestamp ts) {
+	public void setCreateTime(Date ts) {
 		createTime = ts;
 	}
 
-	public void setEndTime(Timestamp ts) {
+	public void setEndTime(Date ts) {
 		endTime = ts;
 	}
 
@@ -216,11 +215,11 @@ public class JobOperatorJobExecution implements JobExecution, TaggedJobExecution
 		instanceID = id;
 	}
 
-	public void setLastUpdateTime(Timestamp ts) {
+	public void setLastUpdateTime(Date ts) {
 		updateTime = ts;
 	}
 
-	public void setStartTime(Timestamp ts) {
+	public void setStartTime(Date ts) {
 		startTime = ts;
 	}
 

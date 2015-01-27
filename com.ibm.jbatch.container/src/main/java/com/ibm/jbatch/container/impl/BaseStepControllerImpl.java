@@ -16,12 +16,10 @@
  */
 package com.ibm.jbatch.container.impl;
 
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
@@ -252,13 +250,10 @@ public abstract class BaseStepControllerImpl implements IExecutionElementControl
 		// Move batch status to started.
 		updateBatchStatus(BatchStatus.STARTED);
 		
-		long time = System.currentTimeMillis();
-		Timestamp startTS = new Timestamp(time);
-		stepContext.setStartTime(startTS);
-		
-		_persistenceManagementService.updateStepExecution(stepContext);
+		_persistenceManagementService.updateStepExecution(stepContext.getInternalStepExecutionId(), stepContext);
 	}
 	
+
 
 	/**
 	 * The only valid states at this point are STARTED,STOPPING, or FAILED.
@@ -294,10 +289,10 @@ public abstract class BaseStepControllerImpl implements IExecutionElementControl
 		if (stepStatus == null) {
 			logger.finer("No existing step status found.  Create new step execution and proceed to execution.");
 			// create new step execution
-			StepExecutionImpl stepExecution = getNewStepExecution(rootJobExecutionId, stepContext);
+			long stepExecutionId = getNewStepExecution(rootJobExecutionId, stepContext);
 			// create new step status for this run
-			stepStatus = _jobStatusService.createStepStatus(stepExecution.getStepExecutionId());
-			((StepContextImpl) stepContext).setStepExecutionId(stepExecution.getStepExecutionId());
+			stepStatus = _jobStatusService.createStepStatus(stepExecutionId);
+			((StepContextImpl) stepContext).setStepExecutionId(stepExecutionId);
 			return true;
 		} else {
 			logger.finer("Existing step status found.");
@@ -309,9 +304,9 @@ public abstract class BaseStepControllerImpl implements IExecutionElementControl
 				// vice versa (in an unexpected error case).
 				stepStatus.incrementStartCount();
 				// create new step execution
-				StepExecutionImpl stepExecution = getNewStepExecution(rootJobExecutionId, stepContext);
-				this.stepStatus.setLastRunStepExecutionId(stepExecution.getStepExecutionId());
-				((StepContextImpl) stepContext).setStepExecutionId(stepExecution.getStepExecutionId());
+				long stepExecutionId = getNewStepExecution(rootJobExecutionId, stepContext);
+				this.stepStatus.setLastRunStepExecutionId(stepExecutionId);
+				((StepContextImpl) stepContext).setStepExecutionId(stepExecutionId);
 				return true;
 			} else {
 				return false;
@@ -380,17 +375,16 @@ public abstract class BaseStepControllerImpl implements IExecutionElementControl
 
 		// set the end time metric before flushing
 		long time = System.currentTimeMillis();
-		Timestamp endTS = new Timestamp(time);
-		stepContext.setEndTime(endTS);
+		Date endTS = new Date(time);
 
-		persistStepExecution();
+		persistStepExecutionOnEnd(endTS);
 	} 
 
-	protected void persistStepExecution() {
-		_persistenceManagementService.updateStepExecution(stepContext);
+	protected void persistStepExecutionOnEnd(Date endTS) {
+		_persistenceManagementService.updateStepExecutionOnEnd(stepContext.getInternalStepExecutionId(), stepContext, endTS);
 	}
 
-	private StepExecutionImpl getNewStepExecution(long rootJobExecutionId, StepContextImpl stepContext) {
+	private long getNewStepExecution(long rootJobExecutionId, StepContextImpl stepContext) {
 		return _persistenceManagementService.createStepExecution(rootJobExecutionId, stepContext);
 	}
 

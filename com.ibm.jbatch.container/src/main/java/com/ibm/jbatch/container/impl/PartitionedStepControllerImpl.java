@@ -17,6 +17,7 @@
 package com.ibm.jbatch.container.impl;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
@@ -576,8 +577,8 @@ public class PartitionedStepControllerImpl extends BaseStepControllerImpl {
 	}
 	
 	@Override
-	protected void persistStepExecution() {
+	protected void persistStepExecutionOnEnd(Date endTS) {
 		// Call special aggregating method
-		_persistenceManagementService.updateWithFinalPartitionAggregateStepExecution(rootJobExecutionId, stepContext);
+		_persistenceManagementService.updateWithFinalPartitionAggregateStepExecution(stepContext.getInternalStepExecutionId(), stepContext, rootJobExecutionId, endTS);
 	}
 }

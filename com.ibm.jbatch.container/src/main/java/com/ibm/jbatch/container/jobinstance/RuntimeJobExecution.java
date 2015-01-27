@@ -16,7 +16,6 @@
  */
 package com.ibm.jbatch.container.jobinstance;
 
-import java.sql.Timestamp;
 import java.util.Date;
 import java.util.Properties;
 
@@ -51,7 +50,7 @@ public class RuntimeJobExecution {
 	 * put on a second interface).
 	 */
 	
-	public void prepareForExecution(JobContextImpl jobContext, Timestamp createTime, String restartOn) {
+	public void prepareForExecution(JobContextImpl jobContext, Date createTime, String restartOn) {
 		setBatchStatus(jobContext.getBatchStatus().toString());
 		setCreateTime(createTime);
 		setLastUpdateTime(createTime);
@@ -63,7 +62,7 @@ public class RuntimeJobExecution {
 		operatorJobExecution.setJobContext(jobContext);
 	}
 	
-	public void prepareForExecution(JobContextImpl jobContext, Timestamp createTime) {
+	public void prepareForExecution(JobContextImpl jobContext, Date createTime) {
 		prepareForExecution(jobContext, createTime, null);
 	}
 	
@@ -118,11 +117,11 @@ public class RuntimeJobExecution {
 		operatorJobExecution.setBatchStatus(status);
 	}
 
-	public void setCreateTime(Timestamp now) {
+	public void setCreateTime(Date now) {
 		operatorJobExecution.setCreateTime(now);
 	}
 
-	public void setEndTime(Timestamp ts) {
+	public void setEndTime(Date ts) {
 		operatorJobExecution.setEndTime(ts);
 	}
 
@@ -132,11 +131,11 @@ public class RuntimeJobExecution {
 
 	}
 
-	public void setLastUpdateTime(Timestamp ts) {
+	public void setLastUpdateTime(Date ts) {
 		operatorJobExecution.setLastUpdateTime(ts);
 	}
 
-	public void setStartTime(Timestamp ts) {
+	public void setStartTime(Date ts) {
 		operatorJobExecution.setStartTime(ts);
 	}
 

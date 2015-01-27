@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -139,8 +140,7 @@ public class JobOperatorImpl implements JobOperator {
 			// if it is not in STARTED or STARTING state, mark it as ABANDONED
 			if (!(jobEx.getBatchStatus().equals(BatchStatus.STARTED) || jobEx.getBatchStatus().equals(BatchStatus.STARTING))){
 				// update table to reflect ABANDONED state
-				long time = System.currentTimeMillis();
-				Timestamp timestamp = new Timestamp(time);
+				Date timestamp = new Date(System.currentTimeMillis());
 				persistenceService.updateBatchStatusOnly(jobEx.getExecutionId(), BatchStatus.ABANDONED, timestamp);
 				logger.fine("Job Execution: " + executionId + " was abandoned");
 

@@ -17,7 +17,6 @@
 package com.ibm.jbatch.container.jobinstance;
 
 import java.io.Serializable;
-import java.sql.Timestamp;
 import java.util.Date;
 
 import javax.batch.api.partition.PartitionPlan;
@@ -31,18 +30,18 @@ import com.ibm.jbatch.container.context.impl.StepContextImpl;
 public class StepExecutionImpl implements StepExecution, Serializable {
     
     private long commitCount = 0;
-    private Timestamp endTime = null;
+    private Date endTime = null;
     private String exitStatus = null;
     private BatchStatus batchStatus = null;
     
     private long filterCount = 0;
     private long jobExecutionId = 0;
-    private Timestamp lastUpdateTime = null;
+    private Date lastUpdateTime = null;
     private long processSkipCount = 0;
     private long readCount = 0;
     private long readSkipCount = 0;
     private long rollbackCount = 0;
-    private Timestamp startTime = null;
+    private Date startTime = null;
     private long stepExecutionId = 0;
     private String stepName = null;
     
@@ -72,15 +71,10 @@ public class StepExecutionImpl implements StepExecution, Serializable {
     
     @Override
     public Date getEndTime() {
-    	if (stepContext != null){
-    		return this.stepContext.getEndTimeTS();
-    	}
-    	else {
-    		if (endTime != null) {
-    			return new Date(endTime.getTime());
-    		} else {
-    			return null;
-    		}
+    	if (endTime != null) {
+    		return new Date(endTime.getTime());
+    	} else {
+    		return null;
     	}
     }
 
@@ -101,15 +95,10 @@ public class StepExecutionImpl implements StepExecution, Serializable {
 
     @Override
     public Date getStartTime() {
-        if (stepContext != null){
-    		return this.stepContext.getStartTimeTS();
-        }
-        else {
-			if (startTime != null) {
-				return new Date(startTime.getTime());
-			} else {
-				return null;
-			}
+		if (startTime != null) {
+			return new Date(startTime.getTime());
+		} else {
+			return null;
 		}
 	}
 
@@ -186,7 +175,7 @@ public class StepExecutionImpl implements StepExecution, Serializable {
 		this.filterCount = filterCnt;
 	}
 
-	public void setLastUpdateTime(Timestamp lastUpdateTime) {
+	public void setLastUpdateTime(Date lastUpdateTime) {
 		this.lastUpdateTime = lastUpdateTime;
 	}
 
@@ -243,11 +232,11 @@ public class StepExecutionImpl implements StepExecution, Serializable {
 		this.exitStatus = exitstatus;
 	}
 
-	public void setStartTime(Timestamp startts) {
+	public void setStartTime(Date startts) {
 		this.startTime = startts;
 	}
 
-	public void setEndTime(Timestamp endts) {
+	public void setEndTime(Date endts) {
 		this.endTime = endts;
 	}
 

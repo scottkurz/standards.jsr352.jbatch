@@ -16,7 +16,6 @@
 */
 package com.ibm.jbatch.container.services;
 
-import java.sql.Timestamp;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -28,11 +27,8 @@ import javax.batch.runtime.BatchStatus;
 import javax.batch.runtime.JobExecution;
 import javax.batch.runtime.JobInstance;
 import javax.batch.runtime.StepExecution;
+import javax.batch.runtime.context.StepContext;
 
-import com.ibm.jbatch.container.context.impl.StepContextImpl;
-import com.ibm.jbatch.container.jobinstance.RuntimeFlowInSplitExecution;
-import com.ibm.jbatch.container.jobinstance.RuntimeJobExecution;
-import com.ibm.jbatch.container.jobinstance.StepExecutionImpl;
 import com.ibm.jbatch.spi.services.IBatchServiceBase;
 
 public interface IPersistenceManagerService extends IBatchServiceBase {
@@ -52,7 +48,7 @@ public interface IPersistenceManagerService extends IBatchServiceBase {
 
 	public List<Long> jobOperatorGetJobInstanceIds(String jobName, String appTag, int start, int count);
 
-	public Timestamp jobOperatorQueryJobExecutionTimestamp(long key, TimestampType timetype);
+	public Date jobOperatorQueryJobExecutionTimestamp(long key, TimestampType timetype);
 
 	public String jobOperatorQueryJobExecutionBatchStatus(long key);
 
@@ -64,11 +60,11 @@ public interface IPersistenceManagerService extends IBatchServiceBase {
 
 	public Map<String, StepExecution> getMostRecentStepExecutionsForJobInstance(long instanceId);
 
-	public void updateBatchStatusOnly(long executionId, BatchStatus batchStatus, Timestamp timestamp);
+	public void updateBatchStatusOnly(long executionId, BatchStatus batchStatus, Date timestamp);
 
-	public void markJobStarted(long key, Timestamp startTS);
+	public void markJobStarted(long key, Date startTS);
 
-	public void updateWithFinalExecutionStatusesAndTimestamps(long key, BatchStatus batchStatus, String exitStatus, Timestamp updatets);
+	public void updateWithFinalExecutionStatusesAndTimestamps(long key, BatchStatus batchStatus, String exitStatus, Date updatets);
 
 	public JobExecution jobOperatorGetJobExecution(long jobExecutionId);
 
@@ -107,7 +103,7 @@ public interface IPersistenceManagerService extends IBatchServiceBase {
 	 * @param createTime creation time
 	 * @return the executionId for this JobExecution
 	 */
-	long createJobExecution(JobInstance jobInstance, Properties jobParameters, BatchStatus batchStatus, Timestamp createTime);
+	long createJobExecution(JobInstance jobInstance, Properties jobParameters, BatchStatus batchStatus, Date createTime);
 
 	// STEPEXECUTIONINSTANCEDATA
 	/**
@@ -115,16 +111,18 @@ public interface IPersistenceManagerService extends IBatchServiceBase {
 	 *
 	 * @param jobExecId the parent JobExecution id
 	 * @param stepContext the step context for this step execution
-	 * @return the StepExecution
+	 * @return the stepExecution id
 	 */
-	public StepExecutionImpl createStepExecution(long jobExecId, StepContextImpl stepContext);
+	public long createStepExecution(long jobExecId, StepContext stepContext);
 
 	/**
 	 * Update a StepExecution
 	 *
 	 * @param stepContext the step context for this step execution
 	 */
-	public void updateStepExecution(StepContextImpl stepContext);
+	public void updateStepExecution(long internalStepExecutionId, StepContext stepContext);
+
+	public void updateStepExecutionOnEnd(long internalStepExecutionId, StepContext stepContext, Date endTime);
 
 	/**
 	 * Update a StepExecution for the "top-level" StepExecution of a partitioned step.
@@ -135,7 +133,7 @@ public interface IPersistenceManagerService extends IBatchServiceBase {
 	 * @param rootJobExecutionId the root job execution id
 	 * @param stepContext the step context for this step execution
 	 */
-	public void updateWithFinalPartitionAggregateStepExecution(long rootJobExecutionId, StepContextImpl stepContext);
+	public void updateWithFinalPartitionAggregateStepExecution(long internalStepExecutionId, StepContext stepContext, long rootJobExecutionId, Date endTS);
 
 	// JOB_STATUS
 	/**
