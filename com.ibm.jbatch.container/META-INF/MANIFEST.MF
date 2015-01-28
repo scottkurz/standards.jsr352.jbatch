@@ -4,6 +4,7 @@ Bundle-Name: com.ibm.jbatch.container
 Bundle-SymbolicName: com.ibm.jbatch.container 
 Bundle-Version: 1.0
 Export-Package: com.ibm.jbatch.jsl.model,
+ com.ibm.jbatch.container.services,
  com.ibm.jbatch.spi.services
 Import-Package: com.ibm.jbatch.spi,
  com.ibm.websphere.asynchbeans;resolution:=optional,
